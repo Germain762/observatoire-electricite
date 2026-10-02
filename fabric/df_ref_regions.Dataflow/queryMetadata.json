@@ -1,0 +1,49 @@
+{
+  "formatVersion": "202502",
+  "computeEngineSettings": {
+    "allowModernEvaluationEngine": true
+  },
+  "name": "df_ref_regions",
+  "queryGroups": [],
+  "documentLocale": "fr-FR",
+  "queriesMetadata": {
+    "regions": {
+      "queryId": "064681d9-dbed-4595-be12-5522e8ab9381",
+      "queryName": "regions",
+      "loadEnabled": false
+    },
+    "chefs_lieux": {
+      "queryId": "698809cf-fe36-4965-9a6b-5d69cdf2bc27",
+      "queryName": "chefs_lieux",
+      "loadEnabled": false
+    },
+    "fn_centre_commune": {
+      "queryId": "bffab480-60ff-41c1-a495-3a04cdaf3554",
+      "queryName": "fn_centre_commune",
+      "loadEnabled": false
+    },
+    "ref_regions": {
+      "queryId": "e629e688-91a3-4717-b6b5-2b384ca0000c",
+      "queryName": "ref_regions",
+      "loadEnabled": false
+    },
+    "Fusionner_DataDestination": {
+      "queryId": "c61d6f3d-6d12-4c43-b7b1-ce8b69145eba",
+      "queryName": "Fusionner_DataDestination",
+      "isHidden": true,
+      "loadEnabled": false
+    }
+  },
+  "connections": [
+    {
+      "path": "https://geo.api.gouv.fr/",
+      "kind": "Web",
+      "connectionId": "{\"ClusterId\":\"9795587b-c0bd-4879-8c88-48e494a6eca3\",\"DatasourceId\":\"005abd37-5c2e-4ca1-a9a5-f3cd5237cf9e\"}"
+    },
+    {
+      "path": "Lakehouse",
+      "kind": "Lakehouse",
+      "connectionId": "{\"ClusterId\":\"9795587b-c0bd-4879-8c88-48e494a6eca3\",\"DatasourceId\":\"daa0b8a2-b67f-4180-b531-ddb8c21d7710\"}"
+    }
+  ]
+}
