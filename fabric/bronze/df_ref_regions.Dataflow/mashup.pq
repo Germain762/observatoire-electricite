@@ -36,9 +36,10 @@ in
 shared ref_regions = let
   Source = Table.NestedJoin(regions, {"code_insee_region"}, chefs_lieux, {"code_region"}, "chefs_lieux", JoinKind.Inner),
   #"chefs_lieux développé" = Table.ExpandTableColumn(Source, "chefs_lieux", {"code_region", "chef_lieu", "code_commune", "longitude", "latitude"}, {"code_region", "chef_lieu", "code_commune", "longitude", "latitude"}),
-  #"Colonnes supprimées" = Table.RemoveColumns(#"chefs_lieux développé", {"code_region", "code_commune"})
+  #"Colonnes supprimées" = Table.RemoveColumns(#"chefs_lieux développé", {"code_region", "code_commune"}),
+  #"Colonne personnalisée ajoutée" = Table.TransformColumnTypes(Table.AddColumn(#"Colonnes supprimées", "perimetre_eco2mix", each [code_insee_region] <> "94"), {{"perimetre_eco2mix", type logical}})
 in
-  #"Colonnes supprimées";
+  #"Colonne personnalisée ajoutée";
 shared Fusionner_DataDestination = let
   Pattern = Lakehouse.Contents([CreateNavigationProperties = false, EnableFolding = false, HierarchicalNavigation = true, EnableVorder = true, OutputMetadataRefresh = true]),
   Navigation_1 = Pattern{[workspaceId = "ad90f025-9a04-41a2-b271-9b5881e5e6ad"]}[Data],

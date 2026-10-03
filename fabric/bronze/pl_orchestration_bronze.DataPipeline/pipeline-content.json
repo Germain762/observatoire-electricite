@@ -24,8 +24,14 @@
         "type": "InvokePipeline",
         "typeProperties": {
           "parameters": {
-            "annee_debut": "@if(equals(pipeline().parameters.mode, 'full'), 2021,\n    sub(int(formatDateTime(utcNow(), 'yyyy')), 1))",
-            "annee_fin": "@int(formatDateTime(utcNow(), 'yyyy'))",
+            "annee_debut": {
+              "value": "@if(equals(pipeline().parameters.mode, 'full'), 2021,\n    sub(int(formatDateTime(utcNow(), 'yyyy')), 1))",
+              "type": "Expression"
+            },
+            "annee_fin": {
+              "value": "@int(formatDateTime(utcNow(), 'yyyy'))",
+              "type": "Expression"
+            },
             "parent_run_id": {
               "value": "@pipeline().RunId",
               "type": "Expression"
@@ -155,7 +161,7 @@
           "workspaceId": "00000000-0000-0000-0000-000000000000"
         },
         "externalReferences": {
-          "connection": "1e1d0258-167f-4341-b649-636bd0510dc8"
+          "connection": "17638650-b63a-418a-83d6-7569830c78b8"
         },
         "policy": {
           "timeout": "0.12:00:00",

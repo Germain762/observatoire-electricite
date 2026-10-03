@@ -60,3 +60,30 @@ display(par_annee.orderBy("annee"))
 # META   "language": "python",
 # META   "language_group": "synapse_pyspark"
 # META }
+
+# CELL ********************
+
+from pyspark.sql import functions as F
+
+eco = (spark.read.parquet("Files/eco2mix/regional_cons_def/")   # la colonne annee vient du dossier annee=
+          .select(F.col("code_insee_region").cast("string"), "annee")
+          .distinct())
+
+ref = (spark.read.table("ref_regions")
+          .filter("perimetre_eco2mix")
+          .select(F.col("code_insee_region").cast("string")))
+
+attendu = ref.crossJoin(eco.select("annee").distinct())
+manquant = attendu.join(eco, ["code_insee_region", "annee"], "left_anti")
+
+n = manquant.count()
+if n > 0:
+    display(manquant)
+    raise Exception(f"{n} combinaison(s) région/année absente(s) du bronze")
+
+# METADATA ********************
+
+# META {
+# META   "language": "python",
+# META   "language_group": "synapse_pyspark"
+# META }
