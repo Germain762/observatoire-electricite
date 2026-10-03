@@ -1,0 +1,191 @@
+{
+  "properties": {
+    "activities": [
+      {
+        "type": "RefreshDataflow",
+        "typeProperties": {
+          "dataflowId": "27a16a95-7647-90e3-4fbf-28add9c9c0f6",
+          "workspaceId": "00000000-0000-0000-0000-000000000000",
+          "notifyOption": "NoNotification",
+          "dataflowType": "DataflowFabric",
+          "executeMashupQueriesOnly": true
+        },
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 0,
+          "retryIntervalInSeconds": 30,
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "name": "df_ref_regions",
+        "dependsOn": []
+      },
+      {
+        "type": "InvokePipeline",
+        "typeProperties": {
+          "parameters": {
+            "annee_debut": "@if(equals(pipeline().parameters.mode, 'full'), 2021,\n    sub(int(formatDateTime(utcNow(), 'yyyy')), 1))",
+            "annee_fin": "@int(formatDateTime(utcNow(), 'yyyy'))",
+            "parent_run_id": {
+              "value": "@pipeline().RunId",
+              "type": "Expression"
+            }
+          },
+          "waitOnCompletion": true,
+          "workspaceId": "00000000-0000-0000-0000-000000000000",
+          "pipelineId": "cb373247-3fd5-9f87-469b-fe3121894c29",
+          "operationType": "InvokeFabricPipeline"
+        },
+        "externalReferences": {
+          "connection": "eb67da48-3ad0-474f-a459-18ba74e6346e"
+        },
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 0,
+          "retryIntervalInSeconds": 30,
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "name": "Invoke pl_ingest_eco2mix",
+        "dependsOn": [
+          {
+            "activity": "df_ref_regions",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "InvokePipeline",
+        "typeProperties": {
+          "parameters": {
+            "date_debut": "2021-01-01",
+            "parent_run_id": {
+              "value": "@pipeline().RunId",
+              "type": "Expression"
+            }
+          },
+          "waitOnCompletion": true,
+          "workspaceId": "00000000-0000-0000-0000-000000000000",
+          "pipelineId": "ac6393e7-29d9-8651-4820-66ca0357ce75",
+          "operationType": "InvokeFabricPipeline"
+        },
+        "externalReferences": {
+          "connection": "eb67da48-3ad0-474f-a459-18ba74e6346e"
+        },
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 0,
+          "retryIntervalInSeconds": 30,
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "name": "Invoke pl_ingest_meteo",
+        "dependsOn": [
+          {
+            "activity": "df_ref_regions",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "Fail",
+        "typeProperties": {
+          "message": {
+            "value": "Échec de l'ingestion éCO2mix dans pl_orchestration_bronze (run @{pipeline().RunId}, @{utcNow()}) : @{activity('Invoke pl_ingest_eco2mix').output}",
+            "type": "Expression"
+          },
+          "errorCode": "INGEST_ECO2MIX_FAILED"
+        },
+        "name": "Fail pl_ingest_eco2mix",
+        "dependsOn": [
+          {
+            "activity": "Invoke pl_ingest_eco2mix",
+            "dependencyConditions": [
+              "Failed"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "Fail",
+        "typeProperties": {
+          "message": {
+            "value": "Échec de l'ingestion éCO2mix dans pl_orchestration_bronze (run @{pipeline().RunId}, @{utcNow()}) : @{activity('df_ref_regions').output}",
+            "type": "Expression"
+          },
+          "errorCode": "INGEST_REF_REGIONS_FAILED"
+        },
+        "name": "Fail df_ref_regions",
+        "dependsOn": [
+          {
+            "activity": "df_ref_regions",
+            "dependencyConditions": [
+              "Failed"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "Fail",
+        "typeProperties": {
+          "message": {
+            "value": "Échec de l'ingestion meteo dans pl_orchestration_bronze (run @{pipeline().RunId}, @{utcNow()}) : @{activity('Invoke pl_ingest_meteo').output}",
+            "type": "Expression"
+          },
+          "errorCode": "INGEST_ECO2MIX_FAILED"
+        },
+        "name": "Fail pl_ingest_meteo",
+        "dependsOn": [
+          {
+            "activity": "Invoke pl_ingest_meteo",
+            "dependencyConditions": [
+              "Failed"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TridentNotebook",
+        "typeProperties": {
+          "notebookId": "5a6f9408-7c3d-96c3-4158-4e9e892485c2",
+          "workspaceId": "00000000-0000-0000-0000-000000000000"
+        },
+        "externalReferences": {
+          "connection": "1e1d0258-167f-4341-b649-636bd0510dc8"
+        },
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 0,
+          "retryIntervalInSeconds": 30,
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "name": "nb_check_bronze",
+        "dependsOn": [
+          {
+            "activity": "Invoke pl_ingest_meteo",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          },
+          {
+            "activity": "Invoke pl_ingest_eco2mix",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ]
+      }
+    ],
+    "parameters": {
+      "mode": {
+        "type": "string",
+        "defaultValue": "incremental"
+      }
+    }
+  }
+}

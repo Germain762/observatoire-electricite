@@ -1,0 +1,200 @@
+{
+  "properties": {
+    "activities": [
+      {
+        "type": "Lookup",
+        "typeProperties": {
+          "source": {
+            "type": "LakehouseTableSource"
+          },
+          "datasetSettings": {
+            "type": "LakehouseTable",
+            "typeProperties": {
+              "schema": "dbo",
+              "table": "ref_regions"
+            },
+            "schema": [],
+            "connectionSettings": {
+              "name": "lh_bronze",
+              "properties": {
+                "type": "Lakehouse",
+                "typeProperties": {
+                  "artifactId": "6bbb5daf-3cb5-8e22-48e7-b6fb5cfb5a02",
+                  "workspaceId": "00000000-0000-0000-0000-000000000000",
+                  "rootFolder": "Tables"
+                },
+                "externalReferences": {
+                  "connection": "daa0b8a2-b67f-4180-b531-ddb8c21d7710"
+                },
+                "annotations": []
+              }
+            },
+            "annotations": []
+          },
+          "firstRowOnly": false
+        },
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 0,
+          "retryIntervalInSeconds": 30,
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "name": "Lookup ref_regions",
+        "dependsOn": [
+          {
+            "activity": "Set v_date_fin",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "ForEach",
+        "typeProperties": {
+          "isSequential": true,
+          "items": {
+            "value": "@activity('Lookup ref_regions').output.value",
+            "type": "Expression"
+          },
+          "activities": [
+            {
+              "type": "Copy",
+              "typeProperties": {
+                "source": {
+                  "type": "BinarySource",
+                  "formatSettings": {
+                    "type": "BinaryReadSettings"
+                  },
+                  "storeSettings": {
+                    "type": "HttpReadSettings",
+                    "requestMethod": "GET"
+                  },
+                  "datasetSettings": {
+                    "type": "Binary",
+                    "typeProperties": {
+                      "location": {
+                        "type": "HttpServerLocation",
+                        "relativeUrl": {
+                          "value": "v1/archive?latitude=@{item().latitude}&longitude=@{item().longitude}&start_date=@{pipeline().parameters.date_debut}&end_date=@{variables('v_date_fin')}&hourly=temperature_2m,wind_speed_10m,shortwave_radiation&timezone=UTC",
+                          "type": "Expression"
+                        }
+                      }
+                    },
+                    "externalReferences": {
+                      "connection": "a4f37421-c13f-41a5-bcf4-068543d4e01e"
+                    },
+                    "annotations": []
+                  }
+                },
+                "sink": {
+                  "type": "BinarySink",
+                  "storeSettings": {
+                    "type": "LakehouseWriteSettings"
+                  },
+                  "datasetSettings": {
+                    "type": "Binary",
+                    "typeProperties": {
+                      "location": {
+                        "type": "LakehouseLocation",
+                        "folderPath": {
+                          "value": "meteo/region=@{item().code_insee_region}",
+                          "type": "Expression"
+                        },
+                        "fileName": "meteo.json"
+                      }
+                    },
+                    "connectionSettings": {
+                      "name": "lh_bronze",
+                      "properties": {
+                        "type": "Lakehouse",
+                        "typeProperties": {
+                          "artifactId": "6bbb5daf-3cb5-8e22-48e7-b6fb5cfb5a02",
+                          "workspaceId": "00000000-0000-0000-0000-000000000000",
+                          "rootFolder": "Files"
+                        },
+                        "externalReferences": {
+                          "connection": "daa0b8a2-b67f-4180-b531-ddb8c21d7710"
+                        },
+                        "annotations": []
+                      }
+                    },
+                    "annotations": []
+                  }
+                },
+                "enableStaging": false
+              },
+              "policy": {
+                "timeout": "0.12:00:00",
+                "retry": 3,
+                "retryIntervalInSeconds": 60,
+                "secureInput": false,
+                "secureOutput": false
+              },
+              "name": "Copy_meteo_region",
+              "dependsOn": []
+            },
+            {
+              "type": "Wait",
+              "typeProperties": {
+                "waitTimeInSeconds": 20
+              },
+              "name": "Wait_quota",
+              "dependsOn": [
+                {
+                  "activity": "Copy_meteo_region",
+                  "dependencyConditions": [
+                    "Succeeded"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "name": "ForEach regions",
+        "dependsOn": [
+          {
+            "activity": "Lookup ref_regions",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "SetVariable",
+        "typeProperties": {
+          "variableName": "v_date_fin",
+          "value": {
+            "value": "@if(empty(pipeline().parameters.date_fin),\n    formatDateTime(addDays(utcNow(), -6), 'yyyy-MM-dd'),\n    pipeline().parameters.date_fin)",
+            "type": "Expression"
+          }
+        },
+        "policy": {
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "name": "Set v_date_fin",
+        "dependsOn": []
+      }
+    ],
+    "parameters": {
+      "date_debut": {
+        "type": "string",
+        "defaultValue": "2021-01-01"
+      },
+      "date_fin": {
+        "type": "string"
+      },
+      "parent_run_id": {
+        "type": "string"
+      }
+    },
+    "variables": {
+      "v_date_fin": {
+        "type": "String"
+      }
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "DataPipeline",
+    "displayName": "pl_ingest_meteo"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "ac6393e7-29d9-8651-4820-66ca0357ce75"
+  }
+}

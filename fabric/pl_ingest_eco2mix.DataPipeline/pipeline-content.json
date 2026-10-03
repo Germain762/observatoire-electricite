@@ -1,0 +1,140 @@
+{
+  "properties": {
+    "activities": [
+      {
+        "type": "ForEach",
+        "typeProperties": {
+          "batchCount": 3,
+          "items": {
+            "value": "@variables('v_annees')",
+            "type": "Expression"
+          },
+          "activities": [
+            {
+              "type": "Copy",
+              "typeProperties": {
+                "source": {
+                  "type": "BinarySource",
+                  "formatSettings": {
+                    "type": "BinaryReadSettings"
+                  },
+                  "storeSettings": {
+                    "type": "HttpReadSettings",
+                    "requestMethod": "GET"
+                  },
+                  "datasetSettings": {
+                    "type": "Binary",
+                    "typeProperties": {
+                      "location": {
+                        "type": "HttpServerLocation",
+                        "relativeUrl": {
+                          "value": "api/explore/v2.1/catalog/datasets/eco2mix-regional-cons-def/exports/parquet?where=@{encodeUriComponent(concat('date_heure >= date''', string(item()), '-01-01'' AND date_heure < date''', string(add(item(), 1)), '-01-01'''))}",
+                          "type": "Expression"
+                        }
+                      }
+                    },
+                    "externalReferences": {
+                      "connection": "d9f138c6-fcef-472e-bfe6-44f75654810b"
+                    },
+                    "annotations": []
+                  }
+                },
+                "sink": {
+                  "type": "BinarySink",
+                  "storeSettings": {
+                    "type": "AzureBlobStorageWriteSettings"
+                  },
+                  "datasetSettings": {
+                    "type": "Binary",
+                    "typeProperties": {
+                      "location": {
+                        "type": "LakehouseLocation",
+                        "folderPath": {
+                          "value": "eco2mix/regional_cons_def/annee=@{item()}",
+                          "type": "Expression"
+                        },
+                        "fileName": {
+                          "value": "eco2mix_@{item()}.parquet",
+                          "type": "Expression"
+                        }
+                      }
+                    },
+                    "connectionSettings": {
+                      "name": "lh_bronze",
+                      "properties": {
+                        "type": "Lakehouse",
+                        "typeProperties": {
+                          "artifactId": "6bbb5daf-3cb5-8e22-48e7-b6fb5cfb5a02",
+                          "workspaceId": "00000000-0000-0000-0000-000000000000",
+                          "rootFolder": "Files"
+                        },
+                        "externalReferences": {
+                          "connection": "daa0b8a2-b67f-4180-b531-ddb8c21d7710"
+                        },
+                        "annotations": []
+                      }
+                    },
+                    "annotations": []
+                  }
+                },
+                "enableStaging": false
+              },
+              "policy": {
+                "timeout": "0.12:00:00",
+                "retry": 2,
+                "retryIntervalInSeconds": 30,
+                "secureInput": false,
+                "secureOutput": false
+              },
+              "name": "Copy cnx_odre",
+              "dependsOn": []
+            }
+          ]
+        },
+        "name": "ForEach",
+        "dependsOn": [
+          {
+            "activity": "Set v_annees",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "SetVariable",
+        "typeProperties": {
+          "variableName": "v_annees",
+          "value": {
+            "value": "@range(\n  int(pipeline().parameters.annee_debut),\n  add(\n    sub(\n      if(equals(int(pipeline().parameters.annee_fin), 0),\n         int(formatDateTime(utcNow(), 'yyyy')),\n         int(pipeline().parameters.annee_fin)),\n      int(pipeline().parameters.annee_debut)),\n    1)\n)",
+            "type": "Expression"
+          }
+        },
+        "policy": {
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "name": "Set v_annees",
+        "dependsOn": []
+      }
+    ],
+    "parameters": {
+      "annee_debut": {
+        "type": "int",
+        "defaultValue": 2021
+      },
+      "annee_fin": {
+        "type": "int",
+        "defaultValue": 0
+      },
+      "parent_run_id": {
+        "type": "string"
+      }
+    },
+    "variables": {
+      "v_annees": {
+        "type": "Array"
+      }
+    }
+  }
+}
