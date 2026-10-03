@@ -55,7 +55,7 @@
         "typeProperties": {
           "isSequential": true,
           "items": {
-            "value": "@activity('Lookup ref_regions').output.value",
+            "value": "@activity('Filter1').output.value",
             "type": "Expression"
           },
           "activities": [
@@ -155,7 +155,7 @@
         "name": "ForEach regions",
         "dependsOn": [
           {
-            "activity": "Lookup ref_regions",
+            "activity": "Filter1",
             "dependencyConditions": [
               "Succeeded"
             ]
@@ -177,6 +177,28 @@
         },
         "name": "Set v_date_fin",
         "dependsOn": []
+      },
+      {
+        "type": "Filter",
+        "typeProperties": {
+          "items": {
+            "value": "@activity('Lookup ref_regions').output.value",
+            "type": "Expression"
+          },
+          "condition": {
+            "value": "@equals(item().perimetre_eco2mix, true )",
+            "type": "Expression"
+          }
+        },
+        "name": "Filter1",
+        "dependsOn": [
+          {
+            "activity": "Lookup ref_regions",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ]
       }
     ],
     "parameters": {
