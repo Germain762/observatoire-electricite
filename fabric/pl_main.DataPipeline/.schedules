@@ -2,22 +2,22 @@
   "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/schedules/1.0.0/schema.json",
   "schedules": [
     {
-      "enabled": false,
-      "enabledControlType": "UserDisabled",
+      "enabled": true,
+      "enabledControlType": "UserEnabled",
       "jobType": "Execute",
       "configuration": {
         "type": "Daily",
-        "startDateTime": "2026-10-03T00:00:00",
+        "startDateTime": "2026-10-07T00:00:00",
         "endDateTime": "9999-12-31T23:59:59.9999999",
         "localTimeZoneId": "Romance Standard Time",
         "times": [
-          "08:00"
+          "05:00"
         ]
       },
       "parameters": [
         {
-          "name": "mode",
-          "value": "incremental",
+          "name": "annee_debut",
+          "value": "2025",
           "type": "Text"
         }
       ]

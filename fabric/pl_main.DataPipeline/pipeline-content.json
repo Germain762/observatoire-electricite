@@ -1,0 +1,106 @@
+{
+  "properties": {
+    "activities": [
+      {
+        "type": "InvokePipeline",
+        "typeProperties": {
+          "parameters": {
+            "mode": {
+              "value": "manuel\n",
+              "type": "Expression"
+            },
+            "run_id": {
+              "value": "@pipeline().RunId",
+              "type": "Expression"
+            }
+          },
+          "waitOnCompletion": true,
+          "workspaceId": "00000000-0000-0000-0000-000000000000",
+          "pipelineId": "c0f9ed68-4720-83d6-4305-0ff71fc4afcd",
+          "operationType": "InvokeFabricPipeline"
+        },
+        "externalReferences": {
+          "connection": "eb67da48-3ad0-474f-a459-18ba74e6346e"
+        },
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 0,
+          "retryIntervalInSeconds": 30,
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "name": "pl_orchestration_bronze",
+        "dependsOn": [
+          {
+            "activity": "annee_debut_effective",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "InvokePipeline",
+        "typeProperties": {
+          "parameters": {
+            "annee_debut": {
+              "value": "@variables('annee_debut_effective')",
+              "type": "Expression"
+            },
+            "run_id": {
+              "value": "@pipeline().RunId",
+              "type": "Expression"
+            }
+          },
+          "waitOnCompletion": true,
+          "workspaceId": "00000000-0000-0000-0000-000000000000",
+          "pipelineId": "e36252cb-28f1-a858-466f-94e91999d9dd",
+          "operationType": "InvokeFabricPipeline"
+        },
+        "externalReferences": {
+          "connection": "eb67da48-3ad0-474f-a459-18ba74e6346e"
+        },
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 0,
+          "retryIntervalInSeconds": 30,
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "name": "pl_orchestration_silver_gold",
+        "dependsOn": [
+          {
+            "activity": "pl_orchestration_bronze",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "SetVariable",
+        "typeProperties": {
+          "variableName": "annee_debut_effective",
+          "value": "@if(equals(pipeline().parameters.annee_debut, 0),\n    sub(int(formatDateTime(utcNow(), 'yyyy')), 1),\n    pipeline().parameters.annee_debut)"
+        },
+        "policy": {
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "name": "annee_debut_effective",
+        "dependsOn": []
+      }
+    ],
+    "parameters": {
+      "annee_debut": {
+        "type": "string",
+        "defaultValue": "0"
+      }
+    },
+    "variables": {
+      "annee_debut_effective": {
+        "type": "String"
+      }
+    }
+  }
+}
