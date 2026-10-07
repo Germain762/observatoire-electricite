@@ -1,0 +1,133 @@
+{
+  "properties": {
+    "activities": [
+      {
+        "type": "TridentNotebook",
+        "typeProperties": {
+          "notebookId": "9d5a6823-82ab-8dc4-48e2-429fecc62807",
+          "workspaceId": "00000000-0000-0000-0000-000000000000",
+          "parameters": {
+            "annee_debut": {
+              "value": {
+                "value": "@pipeline().parameters.annee_debut",
+                "type": "Expression"
+              },
+              "type": "int"
+            },
+            "run_id": {
+              "value": {
+                "value": "@pipeline().parameters.run_id",
+                "type": "Expression"
+              },
+              "type": "string"
+            }
+          }
+        },
+        "externalReferences": {
+          "connection": "17638650-b63a-418a-83d6-7569830c78b8"
+        },
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 2,
+          "retryIntervalInSeconds": 120,
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "name": "nb_silver_eco2mix",
+        "dependsOn": []
+      },
+      {
+        "type": "TridentNotebook",
+        "typeProperties": {
+          "notebookId": "a6ea645d-d0cc-8a1e-443b-36c48355659c",
+          "workspaceId": "00000000-0000-0000-0000-000000000000",
+          "parameters": {
+            "annee_debut": {
+              "value": {
+                "value": "@pipeline().parameters.annee_debut",
+                "type": "Expression"
+              },
+              "type": "int"
+            },
+            "run_id": {
+              "value": {
+                "value": "@pipeline().parameters.run_id",
+                "type": "Expression"
+              },
+              "type": "string"
+            }
+          }
+        },
+        "externalReferences": {
+          "connection": "17638650-b63a-418a-83d6-7569830c78b8"
+        },
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 2,
+          "retryIntervalInSeconds": 120,
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "name": "nb_silver_meteo",
+        "dependsOn": [
+          {
+            "activity": "nb_silver_eco2mix",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TridentNotebook",
+        "typeProperties": {
+          "notebookId": "b6278028-bf31-8565-4f7f-3b2ecd0853e9",
+          "workspaceId": "00000000-0000-0000-0000-000000000000",
+          "parameters": {
+            "annee_debut": {
+              "value": {
+                "value": "@pipeline().parameters.annee_debut",
+                "type": "Expression"
+              },
+              "type": "int"
+            },
+            "run_id": {
+              "value": {
+                "value": "@pipeline().parameters.run_id",
+                "type": "Expression"
+              },
+              "type": "string"
+            }
+          }
+        },
+        "externalReferences": {
+          "connection": "17638650-b63a-418a-83d6-7569830c78b8"
+        },
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 2,
+          "retryIntervalInSeconds": 120,
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "name": "nb_gold",
+        "dependsOn": [
+          {
+            "activity": "nb_silver_meteo",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ]
+      }
+    ],
+    "parameters": {
+      "annee_debut": {
+        "type": "int"
+      },
+      "run_id": {
+        "type": "string"
+      }
+    }
+  }
+}
