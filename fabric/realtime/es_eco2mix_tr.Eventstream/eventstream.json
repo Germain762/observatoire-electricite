@@ -1,0 +1,240 @@
+{
+  "sources": [
+    {
+      "id": "bebada66-30c1-410f-b77c-00b3944efac1",
+      "name": "source_es_eco2mix_tr",
+      "type": "CustomEndpoint",
+      "properties": {}
+    }
+  ],
+  "destinations": [
+    {
+      "id": "55c9f883-4e44-4b10-8a9c-5c5feca4217f",
+      "name": "eco2mix_tr_raw",
+      "type": "Eventhouse",
+      "properties": {
+        "dataIngestionMode": "DirectIngestion",
+        "workspaceId": "00000000-0000-0000-0000-000000000000",
+        "itemId": "568d6d4c-2d6a-8fee-4ee6-43ed7e6a186d",
+        "tableName": "eco2mix_tr_raw",
+        "connectionName": "es_eco2mix_tr_y7jbil",
+        "mappingRuleName": "eco2mix_tr_raw_mapping"
+      },
+      "inputNodes": [
+        {
+          "name": "es_eco2mix_tr-stream"
+        }
+      ],
+      "inputSchemas": [
+        {
+          "name": "es_eco2mix_tr-stream",
+          "schema": {
+            "columns": [
+              {
+                "name": "code_insee_region",
+                "type": "Nvarchar(max)",
+                "fields": null,
+                "items": null
+              },
+              {
+                "name": "libelle_region",
+                "type": "Nvarchar(max)",
+                "fields": null,
+                "items": null
+              },
+              {
+                "name": "nature",
+                "type": "Nvarchar(max)",
+                "fields": null,
+                "items": null
+              },
+              {
+                "name": "date",
+                "type": "Nvarchar(max)",
+                "fields": null,
+                "items": null
+              },
+              {
+                "name": "heure",
+                "type": "Nvarchar(max)",
+                "fields": null,
+                "items": null
+              },
+              {
+                "name": "date_heure",
+                "type": "Nvarchar(max)",
+                "fields": null,
+                "items": null
+              },
+              {
+                "name": "consommation",
+                "type": "BigInt",
+                "fields": null,
+                "items": null
+              },
+              {
+                "name": "thermique",
+                "type": "BigInt",
+                "fields": null,
+                "items": null
+              },
+              {
+                "name": "nucleaire",
+                "type": "BigInt",
+                "fields": null,
+                "items": null
+              },
+              {
+                "name": "eolien",
+                "type": "BigInt",
+                "fields": null,
+                "items": null
+              },
+              {
+                "name": "solaire",
+                "type": "BigInt",
+                "fields": null,
+                "items": null
+              },
+              {
+                "name": "hydraulique",
+                "type": "BigInt",
+                "fields": null,
+                "items": null
+              },
+              {
+                "name": "pompage",
+                "type": "Nvarchar(max)",
+                "fields": null,
+                "items": null
+              },
+              {
+                "name": "bioenergies",
+                "type": "BigInt",
+                "fields": null,
+                "items": null
+              },
+              {
+                "name": "ech_physiques",
+                "type": "BigInt",
+                "fields": null,
+                "items": null
+              },
+              {
+                "name": "stockage_batterie",
+                "type": "Nvarchar(max)",
+                "fields": null,
+                "items": null
+              },
+              {
+                "name": "destockage_batterie",
+                "type": "Nvarchar(max)",
+                "fields": null,
+                "items": null
+              },
+              {
+                "name": "tco_thermique",
+                "type": "Float",
+                "fields": null,
+                "items": null
+              },
+              {
+                "name": "tch_thermique",
+                "type": "Float",
+                "fields": null,
+                "items": null
+              },
+              {
+                "name": "tco_nucleaire",
+                "type": "Float",
+                "fields": null,
+                "items": null
+              },
+              {
+                "name": "tch_nucleaire",
+                "type": "Float",
+                "fields": null,
+                "items": null
+              },
+              {
+                "name": "tco_eolien",
+                "type": "Float",
+                "fields": null,
+                "items": null
+              },
+              {
+                "name": "tch_eolien",
+                "type": "Float",
+                "fields": null,
+                "items": null
+              },
+              {
+                "name": "tco_solaire",
+                "type": "Float",
+                "fields": null,
+                "items": null
+              },
+              {
+                "name": "tch_solaire",
+                "type": "Float",
+                "fields": null,
+                "items": null
+              },
+              {
+                "name": "tco_hydraulique",
+                "type": "Float",
+                "fields": null,
+                "items": null
+              },
+              {
+                "name": "tch_hydraulique",
+                "type": "Float",
+                "fields": null,
+                "items": null
+              },
+              {
+                "name": "tco_bioenergies",
+                "type": "Float",
+                "fields": null,
+                "items": null
+              },
+              {
+                "name": "tch_bioenergies",
+                "type": "Float",
+                "fields": null,
+                "items": null
+              },
+              {
+                "name": "column_68",
+                "type": "Record",
+                "fields": [],
+                "items": null
+              },
+              {
+                "name": "fetched_at_utc",
+                "type": "Nvarchar(max)",
+                "fields": null,
+                "items": null
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "streams": [
+    {
+      "id": "67978e92-3654-4e34-a754-bf32586e7630",
+      "name": "es_eco2mix_tr-stream",
+      "type": "DefaultStream",
+      "properties": {},
+      "inputNodes": [
+        {
+          "name": "source_es_eco2mix_tr"
+        }
+      ]
+    }
+  ],
+  "operators": [],
+  "compatibilityLevel": "1.1"
+}

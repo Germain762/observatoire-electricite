@@ -1,0 +1,12 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "KQLQueryset",
+    "displayName": "kqs_eco2mix_tr",
+    "description": "kqs_eco2mix_tr"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "07727779-1f3b-8da6-466f-588f5abaa699"
+  }
+}
