@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Notebook",
+    "displayName": "nb_producer_eco2mix_tr"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "55dd78f9-e9b8-b833-4665-7cf3623fd10a"
+  }
+}

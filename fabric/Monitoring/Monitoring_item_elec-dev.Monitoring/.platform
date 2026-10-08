@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Monitoring",
+    "displayName": "Monitoring_item_elec-dev"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "c322859d-b187-8590-4b18-f6f1f20c94f2"
+  }
+}

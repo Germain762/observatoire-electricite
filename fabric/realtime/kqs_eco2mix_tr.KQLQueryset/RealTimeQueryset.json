@@ -1,0 +1,46 @@
+{
+  "queryset": {
+    "version": "1.0.0",
+    "dataSources": [
+      {
+        "id": "b5f7bf3d-0c79-478d-bbeb-33addd76bd8a",
+        "clusterUri": "",
+        "type": "Fabric",
+        "databaseItemId": "568d6d4c-2d6a-8fee-4ee6-43ed7e6a186d"
+      }
+    ],
+    "tabs": [
+      {
+        "id": "bdd57d68-cbac-4c83-9b14-0ba53f176a67",
+        "content": "eco2mix_tr_raw | getschema\n\neco2mix_tr_raw\n| summarize nb_versions = count() by code_insee_region, date_heure\n| summarize lignes_uniques = count(), versions_moyennes = avg(nb_versions)\n\n.set-or-append eco2mix_tr <| f_eco2mix_tr_typage()\n\neco2mix_tr\n| count \n\n",
+        "title": "Tab",
+        "dataSourceId": "b5f7bf3d-0c79-478d-bbeb-33addd76bd8a"
+      },
+      {
+        "id": "a88f73d8-3298-4725-85e9-76a5170716f1",
+        "content": ".create table eco2mix_tr (\n    code_region: string, \n    libelle_region: string, \n    ts_utc: datetime,\n    consommation: real, \n    thermique: real, \n    nucleaire: real, \n    eolien: real,\n    solaire: real, \n    hydraulique: real, \n    bioenergies: real,\n    pompage: real, \n    ech_physiques: real,\n    fetched_at_utc: datetime\n)\n\n.show ingestion failures\n| where Table == \"eco2mix_tr\"",
+        "title": "table eco2mix_tr",
+        "dataSourceId": "b5f7bf3d-0c79-478d-bbeb-33addd76bd8a"
+      },
+      {
+        "id": "f2b72713-21da-4d45-afbf-f8ffaa86dc93",
+        "content": ".create-or-alter function with (folder = \"transform\") f_eco2mix_tr_typage() {\n    eco2mix_tr_raw\n    | project\n        code_region    = tostring(code_insee_region),\n        libelle_region = tostring(libelle_region),\n        ts_utc         = todatetime(date_heure),\n        consommation   = toreal(consommation),\n        thermique      = toreal(thermique),\n        nucleaire      = toreal(nucleaire),\n        eolien         = toreal(eolien),\n        solaire        = toreal(solaire),\n        hydraulique    = toreal(hydraulique),\n        bioenergies    = toreal(bioenergies),\n        pompage        = toreal(pompage),\n        ech_physiques  = toreal(ech_physiques),\n        fetched_at_utc = todatetime(fetched_at_utc)\n}\n\nf_eco2mix_tr_typage() | take 10\n\n.create-or-alter function with (folder = \"serve\") f_dernier_etat() {\n    mv_eco2mix_tr_dedup\n    | where isnotnull(consommation)\n    | summarize arg_max(ts_utc, *) by code_region\n}\n\nf_dernier_etat() | take 10",
+        "title": "f_eco2mix_tr_typage",
+        "dataSourceId": "b5f7bf3d-0c79-478d-bbeb-33addd76bd8a"
+      },
+      {
+        "id": "19c8a2d2-d450-46c6-985b-67b11c7c9baf",
+        "content": ".alter table eco2mix_tr policy update\n@'[{\"IsEnabled\": true, \"Source\": \"eco2mix_tr_raw\", \"Query\": \"f_eco2mix_tr_typage()\", \"IsTransactional\": false}]'",
+        "title": "policy",
+        "dataSourceId": "b5f7bf3d-0c79-478d-bbeb-33addd76bd8a"
+      },
+      {
+        "id": "8125808e-37f7-41d9-81a5-02d374e9058e",
+        "content": ".create materialized-view with (backfill = true) mv_eco2mix_tr_dedup on table eco2mix_tr {\n    eco2mix_tr\n    | summarize arg_max(fetched_at_utc, *) by code_region, ts_utc\n}\n\nmv_eco2mix_tr_dedup | count\nmaterialized_view(\"mv_eco2mix_tr_dedup\")\n\n.show materialized-view mv_eco2mix_tr_dedup",
+        "title": "Materialized View",
+        "dataSourceId": "b5f7bf3d-0c79-478d-bbeb-33addd76bd8a"
+      }
+    ],
+    "querysetType": "Standalone"
+  }
+}

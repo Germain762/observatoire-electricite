@@ -1,0 +1,35 @@
+// KQL script
+// Use management commands in this script to configure your database items, such as tables, functions, materialized views, and more.
+
+
+.create-merge table eco2mix_tr_raw (code_insee_region:long, libelle_region:string, nature:string, ['date']:datetime, heure:timespan, date_heure:datetime, consommation:string, thermique:string, nucleaire:string, eolien:string, solaire:string, hydraulique:string, pompage:string, bioenergies:string, ech_physiques:string, stockage_batterie:string, destockage_batterie:string, tco_thermique:string, tch_thermique:string, tco_nucleaire:string, tch_nucleaire:string, tco_eolien:string, tch_eolien:string, tco_solaire:string, tch_solaire:string, tco_hydraulique:string, tch_hydraulique:string, tco_bioenergies:string, tch_bioenergies:string, column_68:string, fetched_at_utc:datetime) 
+.create-or-alter table eco2mix_tr_raw ingestion json mapping 'eco2mix_tr_raw_mapping'
+```
+[{"Properties":{"Path":"$['code_insee_region']"},"column":"code_insee_region","datatype":""},{"Properties":{"Path":"$['libelle_region']"},"column":"libelle_region","datatype":""},{"Properties":{"Path":"$['nature']"},"column":"nature","datatype":""},{"Properties":{"Path":"$['date']"},"column":"date","datatype":""},{"Properties":{"Path":"$['heure']"},"column":"heure","datatype":""},{"Properties":{"Path":"$['date_heure']"},"column":"date_heure","datatype":""},{"Properties":{"Path":"$['consommation']"},"column":"consommation","datatype":""},{"Properties":{"Path":"$['thermique']"},"column":"thermique","datatype":""},{"Properties":{"Path":"$['nucleaire']"},"column":"nucleaire","datatype":""},{"Properties":{"Path":"$['eolien']"},"column":"eolien","datatype":""},{"Properties":{"Path":"$['solaire']"},"column":"solaire","datatype":""},{"Properties":{"Path":"$['hydraulique']"},"column":"hydraulique","datatype":""},{"Properties":{"Path":"$['pompage']"},"column":"pompage","datatype":""},{"Properties":{"Path":"$['bioenergies']"},"column":"bioenergies","datatype":""},{"Properties":{"Path":"$['ech_physiques']"},"column":"ech_physiques","datatype":""},{"Properties":{"Path":"$['stockage_batterie']"},"column":"stockage_batterie","datatype":""},{"Properties":{"Path":"$['destockage_batterie']"},"column":"destockage_batterie","datatype":""},{"Properties":{"Path":"$['tco_thermique']"},"column":"tco_thermique","datatype":""},{"Properties":{"Path":"$['tch_thermique']"},"column":"tch_thermique","datatype":""},{"Properties":{"Path":"$['tco_nucleaire']"},"column":"tco_nucleaire","datatype":""},{"Properties":{"Path":"$['tch_nucleaire']"},"column":"tch_nucleaire","datatype":""},{"Properties":{"Path":"$['tco_eolien']"},"column":"tco_eolien","datatype":""},{"Properties":{"Path":"$['tch_eolien']"},"column":"tch_eolien","datatype":""},{"Properties":{"Path":"$['tco_solaire']"},"column":"tco_solaire","datatype":""},{"Properties":{"Path":"$['tch_solaire']"},"column":"tch_solaire","datatype":""},{"Properties":{"Path":"$['tco_hydraulique']"},"column":"tco_hydraulique","datatype":""},{"Properties":{"Path":"$['tch_hydraulique']"},"column":"tch_hydraulique","datatype":""},{"Properties":{"Path":"$['tco_bioenergies']"},"column":"tco_bioenergies","datatype":""},{"Properties":{"Path":"$['tch_bioenergies']"},"column":"tch_bioenergies","datatype":""},{"Properties":{"Path":"$['column_68']"},"column":"column_68","datatype":""},{"Properties":{"Path":"$['fetched_at_utc']"},"column":"fetched_at_utc","datatype":""}]
+```
+.create-merge table eco2mix_tr (code_region:string, libelle_region:string, ts_utc:datetime, consommation:real, thermique:real, nucleaire:real, eolien:real, solaire:real, hydraulique:real, bioenergies:real, pompage:real, ech_physiques:real, fetched_at_utc:datetime) 
+.create-or-alter function with (folder = "transform", skipvalidation = "true") f_eco2mix_tr_typage() {
+    eco2mix_tr_raw
+    | project
+        code_region    = tostring(code_insee_region),
+        libelle_region = tostring(libelle_region),
+        ts_utc         = todatetime(date_heure),
+        consommation   = toreal(consommation),
+        thermique      = toreal(thermique),
+        nucleaire      = toreal(nucleaire),
+        eolien         = toreal(eolien),
+        solaire        = toreal(solaire),
+        hydraulique    = toreal(hydraulique),
+        bioenergies    = toreal(bioenergies),
+        pompage        = toreal(pompage),
+        ech_physiques  = toreal(ech_physiques),
+        fetched_at_utc = todatetime(fetched_at_utc)
+}
+.create-or-alter function with (folder = "serve", skipvalidation = "true") f_dernier_etat() {
+    mv_eco2mix_tr_dedup
+    | where isnotnull(consommation)
+    | summarize arg_max(ts_utc, *) by code_region
+}
+.create-or-alter materialized-view  mv_eco2mix_tr_dedup on table eco2mix_tr { eco2mix_tr
+    | summarize arg_max(fetched_at_utc, *) by code_region, ts_utc }
+.alter table eco2mix_tr policy update "[{\"IsEnabled\":true,\"Source\":\"eco2mix_tr_raw\",\"Query\":\"f_eco2mix_tr_typage()\",\"IsTransactional\":false,\"PropagateIngestionProperties\":false,\"ManagedIdentity\":null}]"
