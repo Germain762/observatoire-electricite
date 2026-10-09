@@ -81,7 +81,10 @@
         "type": "SetVariable",
         "typeProperties": {
           "variableName": "annee_debut_effective",
-          "value": "@if(equals(pipeline().parameters.annee_debut, 0),\n    sub(int(formatDateTime(utcNow(), 'yyyy')), 1),\n    pipeline().parameters.annee_debut)"
+          "value": {
+            "value": "@if(equals(pipeline().parameters.annee_debut, 0),\n    sub(int(formatDateTime(utcNow(), 'yyyy')), 1),\n    pipeline().parameters.annee_debut)",
+            "type": "Expression"
+          }
         },
         "policy": {
           "secureInput": false,
@@ -89,6 +92,44 @@
         },
         "name": "annee_debut_effective",
         "dependsOn": []
+      },
+      {
+        "type": "InvokePipeline",
+        "typeProperties": {
+          "parameters": {
+            "annee_debut": {
+              "value": "@variables('annee_debut_effective')",
+              "type": "Expression"
+            },
+            "run_id": {
+              "value": "@pipeline().RunId",
+              "type": "Expression"
+            }
+          },
+          "waitOnCompletion": true,
+          "workspaceId": "00000000-0000-0000-0000-000000000000",
+          "pipelineId": "67502e41-946b-b7be-408a-8428eb167045",
+          "operationType": "InvokeFabricPipeline"
+        },
+        "externalReferences": {
+          "connection": "eb67da48-3ad0-474f-a459-18ba74e6346e"
+        },
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 0,
+          "retryIntervalInSeconds": 30,
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "name": "pl_orchestration_warehouse",
+        "dependsOn": [
+          {
+            "activity": "pl_orchestration_silver_gold",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ]
       }
     ],
     "parameters": {

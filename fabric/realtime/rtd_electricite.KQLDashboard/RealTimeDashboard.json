@@ -1,0 +1,495 @@
+{
+  "schema_version": 86,
+  "flavor": "RTDashboard_Regular",
+  "changeDetection": {
+    "kind": "liveUpdates",
+    "fallbackRefreshRate": "30m",
+    "minRefreshRate": "30m"
+  },
+  "tiles": [
+    {
+      "id": "01432d69-608c-46ff-9583-7f8963d3c4c4",
+      "title": "Part thermique nationale",
+      "visualType": "timechart",
+      "pageId": "5acb3408-75c2-4e95-b906-bc8bc81059fa",
+      "layout": {
+        "x": 0,
+        "y": 0,
+        "width": 9,
+        "height": 7
+      },
+      "queryRef": {
+        "kind": "query",
+        "queryId": "5a5a0891-daf8-478a-8958-8c43be3737c6"
+      },
+      "visualOptions": {
+        "multipleYAxes": {
+          "base": {
+            "id": "-1",
+            "label": "",
+            "columns": [],
+            "yAxisMaximumValue": null,
+            "yAxisMinimumValue": null,
+            "yAxisScale": "linear",
+            "horizontalLines": []
+          },
+          "additional": [],
+          "showMultiplePanels": false
+        },
+        "seriesColors": {},
+        "hideLegend": false,
+        "legendLocation": "bottom",
+        "xColumnTitle": "",
+        "xColumn": null,
+        "yColumns": null,
+        "seriesColumns": null,
+        "xAxisScale": "linear",
+        "verticalLine": "",
+        "crossFilter": [],
+        "crossFilterDisabled": false,
+        "drillthroughDisabled": false,
+        "forceAxisTicks": false,
+        "drillthrough": []
+      }
+    },
+    {
+      "id": "cf2eac39-ee0b-408c-8625-e7dca9781355",
+      "title": "Mix national",
+      "visualType": "area",
+      "pageId": "5acb3408-75c2-4e95-b906-bc8bc81059fa",
+      "layout": {
+        "x": 9,
+        "y": 0,
+        "width": 9,
+        "height": 7
+      },
+      "queryRef": {
+        "kind": "query",
+        "queryId": "d4abb06a-0362-43f5-b792-faa7972b54af"
+      },
+      "visualOptions": {
+        "multipleYAxes": {
+          "base": {
+            "id": "-1",
+            "label": "",
+            "columns": [],
+            "yAxisMaximumValue": null,
+            "yAxisMinimumValue": null,
+            "yAxisScale": "linear",
+            "horizontalLines": []
+          },
+          "additional": [],
+          "showMultiplePanels": false
+        },
+        "seriesColors": {},
+        "hideLegend": false,
+        "legendLocation": "bottom",
+        "xColumnTitle": "",
+        "xColumn": null,
+        "yColumns": null,
+        "seriesColumns": null,
+        "xAxisScale": "linear",
+        "verticalLine": "",
+        "crossFilter": [],
+        "crossFilterDisabled": false,
+        "drillthroughDisabled": false,
+        "forceAxisTicks": false,
+        "drillthrough": []
+      }
+    },
+    {
+      "id": "e9bf9dda-832c-462a-b2d8-a8ca394f9856",
+      "title": "Dernier état par région",
+      "visualType": "table",
+      "pageId": "5acb3408-75c2-4e95-b906-bc8bc81059fa",
+      "layout": {
+        "x": 0,
+        "y": 7,
+        "width": 15,
+        "height": 8
+      },
+      "queryRef": {
+        "kind": "query",
+        "queryId": "4dbc62d1-323a-4651-ba85-646bb3fcbfc1"
+      },
+      "visualOptions": {
+        "table__enableRenderLinks": true,
+        "colorRulesDisabled": true,
+        "crossFilter": [],
+        "crossFilterDisabled": false,
+        "drillthroughDisabled": false,
+        "drillthrough": [],
+        "table__renderLinks": [],
+        "colorRules": []
+      }
+    },
+    {
+      "id": "7e39809a-2798-4a9a-97e4-279a4177ceca",
+      "title": "Consommation et anomalies",
+      "visualType": "timechart",
+      "pageId": "5acb3408-75c2-4e95-b906-bc8bc81059fa",
+      "layout": {
+        "x": 15,
+        "y": 7,
+        "width": 9,
+        "height": 7
+      },
+      "queryRef": {
+        "kind": "query",
+        "queryId": "e872171a-590a-4045-b43f-24c5c0c9a07a"
+      },
+      "visualOptions": {
+        "multipleYAxes": {
+          "base": {
+            "id": "-1",
+            "label": "",
+            "columns": [],
+            "yAxisMaximumValue": null,
+            "yAxisMinimumValue": null,
+            "yAxisScale": "linear",
+            "horizontalLines": []
+          },
+          "additional": [],
+          "showMultiplePanels": false
+        },
+        "seriesColors": {},
+        "hideLegend": false,
+        "legendLocation": "bottom",
+        "xColumnTitle": "",
+        "xColumn": null,
+        "yColumns": null,
+        "seriesColumns": null,
+        "xAxisScale": "linear",
+        "verticalLine": "",
+        "crossFilter": [],
+        "crossFilterDisabled": false,
+        "drillthroughDisabled": false,
+        "forceAxisTicks": false,
+        "drillthrough": []
+      }
+    },
+    {
+      "id": "fac61aeb-e049-4a44-b73f-15d682c9aa9e",
+      "title": "Part thermique nationale",
+      "visualType": "timechart",
+      "pageId": "126bcc96-1e21-46cc-b947-85c88ef10109",
+      "layout": {
+        "x": 0,
+        "y": 0,
+        "width": 9,
+        "height": 7
+      },
+      "queryRef": {
+        "kind": "query",
+        "queryId": "68dade21-bd88-4b71-b018-ec9a3806c78c"
+      },
+      "visualOptions": {
+        "multipleYAxes": {
+          "base": {
+            "id": "-1",
+            "label": "",
+            "columns": [],
+            "yAxisMaximumValue": null,
+            "yAxisMinimumValue": null,
+            "yAxisScale": "linear",
+            "horizontalLines": []
+          },
+          "additional": [],
+          "showMultiplePanels": false
+        },
+        "seriesColors": {},
+        "hideLegend": false,
+        "legendLocation": "bottom",
+        "xColumnTitle": "",
+        "xColumn": null,
+        "yColumns": null,
+        "seriesColumns": null,
+        "xAxisScale": "linear",
+        "verticalLine": "",
+        "crossFilter": [],
+        "crossFilterDisabled": false,
+        "drillthroughDisabled": false,
+        "forceAxisTicks": false,
+        "drillthrough": []
+      }
+    },
+    {
+      "id": "35657b75-2f05-4a8f-843c-7027af8216b8",
+      "title": "Mix national",
+      "visualType": "area",
+      "pageId": "126bcc96-1e21-46cc-b947-85c88ef10109",
+      "layout": {
+        "x": 9,
+        "y": 0,
+        "width": 9,
+        "height": 7
+      },
+      "queryRef": {
+        "kind": "query",
+        "queryId": "9f252e2b-0239-4671-bf8d-a2d3834cd4e0"
+      },
+      "visualOptions": {
+        "multipleYAxes": {
+          "base": {
+            "id": "-1",
+            "label": "",
+            "columns": [],
+            "yAxisMaximumValue": null,
+            "yAxisMinimumValue": null,
+            "yAxisScale": "linear",
+            "horizontalLines": []
+          },
+          "additional": [],
+          "showMultiplePanels": false
+        },
+        "seriesColors": {},
+        "hideLegend": false,
+        "legendLocation": "bottom",
+        "xColumnTitle": "",
+        "xColumn": null,
+        "yColumns": null,
+        "seriesColumns": null,
+        "xAxisScale": "linear",
+        "verticalLine": "",
+        "crossFilter": [],
+        "crossFilterDisabled": false,
+        "drillthroughDisabled": false,
+        "forceAxisTicks": false,
+        "drillthrough": []
+      }
+    },
+    {
+      "id": "5348042f-b40b-44ac-95ba-ed237a43e7f5",
+      "title": "Dernier état par région",
+      "visualType": "table",
+      "pageId": "126bcc96-1e21-46cc-b947-85c88ef10109",
+      "layout": {
+        "x": 0,
+        "y": 7,
+        "width": 9,
+        "height": 7
+      },
+      "queryRef": {
+        "kind": "query",
+        "queryId": "356039ea-1416-4569-9934-f195da59396e"
+      },
+      "visualOptions": {
+        "table__enableRenderLinks": true,
+        "colorRulesDisabled": true,
+        "crossFilter": [],
+        "crossFilterDisabled": false,
+        "drillthroughDisabled": false,
+        "drillthrough": [],
+        "table__renderLinks": [],
+        "colorRules": []
+      }
+    },
+    {
+      "id": "6c700743-9ce2-405a-a8f4-098d12b36483",
+      "title": "Consommation et anomalies",
+      "visualType": "pie",
+      "pageId": "126bcc96-1e21-46cc-b947-85c88ef10109",
+      "layout": {
+        "x": 9,
+        "y": 7,
+        "width": 9,
+        "height": 7
+      },
+      "queryRef": {
+        "kind": "query",
+        "queryId": "3668d61b-c1cf-477f-95a0-8abc3077ec94"
+      },
+      "visualOptions": {
+        "hideLegend": false,
+        "legendLocation": "bottom",
+        "xColumn": null,
+        "yColumns": null,
+        "seriesColumns": null,
+        "crossFilter": [],
+        "crossFilterDisabled": false,
+        "drillthroughDisabled": false,
+        "labelDisabled": false,
+        "pie__label": [
+          "name",
+          "percentage"
+        ],
+        "tooltipDisabled": false,
+        "pie__tooltip": [
+          "name",
+          "percentage",
+          "value"
+        ],
+        "pie__orderBy": "size",
+        "pie__kind": "pie",
+        "pie__topNSlices": null,
+        "seriesColors": {},
+        "drillthrough": []
+      }
+    }
+  ],
+  "baseQueries": [],
+  "parameters": [
+    {
+      "kind": "duration",
+      "id": "fb4ce200-3911-4d20-9739-6da5e9cbc7dc",
+      "displayName": "Intervalle de temps",
+      "description": "",
+      "beginVariableName": "_startTime",
+      "endVariableName": "_endTime",
+      "defaultValue": {
+        "kind": "dynamic",
+        "count": 24,
+        "unit": "hours"
+      },
+      "showOnPages": {
+        "kind": "all"
+      }
+    },
+    {
+      "kind": "string",
+      "id": "047852d3-8ad4-40c8-84b2-ecf0cd3d46e9",
+      "displayName": "Region",
+      "description": "",
+      "variableName": "_region",
+      "selectionType": "scalar",
+      "includeAllOption": true,
+      "defaultValue": {
+        "kind": "all"
+      },
+      "dataSource": {
+        "kind": "query",
+        "columns": {
+          "value": "libelle_region",
+          "label": "libelle_region"
+        },
+        "queryRef": {
+          "kind": "query",
+          "queryId": "007b97a6-8171-4d68-b8c9-bd9ef1e66bfb"
+        }
+      },
+      "showOnPages": {
+        "kind": "all"
+      }
+    }
+  ],
+  "dataSources": [
+    {
+      "kind": "kusto-trident",
+      "clusterUri": "",
+      "name": "eh_electricite",
+      "databaseArtifactId": "7e6a186d-43ed-4ee6-8fee-2d6a568d6d4c",
+      "database": "568d6d4c-2d6a-8fee-4ee6-43ed7e6a186d",
+      "workspace": "00000000-0000-0000-0000-000000000000",
+      "id": "5cccb8ef-57dd-4e0e-90ff-7fe65b34209b"
+    }
+  ],
+  "pages": [
+    {
+      "name": "National",
+      "id": "5acb3408-75c2-4e95-b906-bc8bc81059fa"
+    },
+    {
+      "id": "126bcc96-1e21-46cc-b947-85c88ef10109",
+      "name": "Region"
+    }
+  ],
+  "queries": [
+    {
+      "dataSource": {
+        "kind": "inline",
+        "dataSourceId": "5cccb8ef-57dd-4e0e-90ff-7fe65b34209b"
+      },
+      "text": "f_mix_national(_startTime, _endTime)\r\n| project ts_utc, part_thermique",
+      "id": "5a5a0891-daf8-478a-8958-8c43be3737c6",
+      "usedVariables": [
+        "_endTime",
+        "_startTime"
+      ]
+    },
+    {
+      "dataSource": {
+        "kind": "inline",
+        "dataSourceId": "5cccb8ef-57dd-4e0e-90ff-7fe65b34209b"
+      },
+      "text": "f_mix_national(_startTime, _endTime)\r\n| project ts_utc, nucleaire, eolien, solaire, hydraulique, thermique, bioenergies",
+      "id": "d4abb06a-0362-43f5-b792-faa7972b54af",
+      "usedVariables": [
+        "_endTime",
+        "_startTime"
+      ]
+    },
+    {
+      "dataSource": {
+        "kind": "inline",
+        "dataSourceId": "5cccb8ef-57dd-4e0e-90ff-7fe65b34209b"
+      },
+      "text": "f_dernier_etat",
+      "id": "4dbc62d1-323a-4651-ba85-646bb3fcbfc1",
+      "usedVariables": []
+    },
+    {
+      "dataSource": {
+        "kind": "inline",
+        "dataSourceId": "5cccb8ef-57dd-4e0e-90ff-7fe65b34209b"
+      },
+      "text": "mv_eco2mix_tr_dedup\r\n| where ts_utc > ago(8d) and isnotnull(consommation)\r\n| make-series conso = avg(consommation) default = real(null) on ts_utc step 15m by libelle_region\r\n| extend conso = series_fill_linear(conso)\r\n| extend (anomalies, score, baseline) = series_decompose_anomalies(conso, 2.5)\r\n| render anomalychart with (anomalycolumns = anomalies)",
+      "id": "e872171a-590a-4045-b43f-24c5c0c9a07a",
+      "usedVariables": []
+    },
+    {
+      "dataSource": {
+        "kind": "inline",
+        "dataSourceId": "5cccb8ef-57dd-4e0e-90ff-7fe65b34209b"
+      },
+      "text": "f_mix_national(_startTime, _endTime)\r\n| where libelle_region = _region\r\n| project ts_utc, part_thermique",
+      "id": "68dade21-bd88-4b71-b018-ec9a3806c78c",
+      "usedVariables": [
+        "_endTime",
+        "_region",
+        "_startTime"
+      ]
+    },
+    {
+      "dataSource": {
+        "kind": "inline",
+        "dataSourceId": "5cccb8ef-57dd-4e0e-90ff-7fe65b34209b"
+      },
+      "text": "f_mix_national(_startTime, _endTime)\r\n| project ts_utc, nucleaire, eolien, solaire, hydraulique, thermique, bioenergies",
+      "id": "9f252e2b-0239-4671-bf8d-a2d3834cd4e0",
+      "usedVariables": [
+        "_endTime",
+        "_startTime"
+      ]
+    },
+    {
+      "dataSource": {
+        "kind": "inline",
+        "dataSourceId": "5cccb8ef-57dd-4e0e-90ff-7fe65b34209b"
+      },
+      "text": "f_dernier_etat",
+      "id": "356039ea-1416-4569-9934-f195da59396e",
+      "usedVariables": []
+    },
+    {
+      "dataSource": {
+        "kind": "inline",
+        "dataSourceId": "5cccb8ef-57dd-4e0e-90ff-7fe65b34209b"
+      },
+      "text": "mv_eco2mix_tr_dedup\r\n| where ts_utc > ago(8d) and isnotnull(consommation) and libelle_region == _region\r\n| make-series conso = avg(consommation) default = real(null) on ts_utc step 15m by libelle_region\r\n| extend conso = series_fill_linear(conso)\r\n| extend (anomalies, score, baseline) = series_decompose_anomalies(conso, 2.5)\r\n| render anomalychart with (anomalycolumns = anomalies)",
+      "id": "3668d61b-c1cf-477f-95a0-8abc3077ec94",
+      "usedVariables": [
+        "_region"
+      ]
+    },
+    {
+      "dataSource": {
+        "kind": "inline",
+        "dataSourceId": "5cccb8ef-57dd-4e0e-90ff-7fe65b34209b"
+      },
+      "text": "mv_eco2mix_tr_dedup\n| distinct libelle_region",
+      "id": "007b97a6-8171-4d68-b8c9-bd9ef1e66bfb",
+      "usedVariables": []
+    }
+  ],
+  "embeddedApps": []
+}

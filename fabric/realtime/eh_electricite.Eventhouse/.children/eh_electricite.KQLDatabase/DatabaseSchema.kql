@@ -30,6 +30,20 @@
     | where isnotnull(consommation)
     | summarize arg_max(ts_utc, *) by code_region
 }
+.create-or-alter function with (folder = "serve", skipvalidation = "true") f_mix_national(debut:datetime, fin:datetime) {
+    let nb_regions = toscalar(mv_eco2mix_tr_dedup | summarize dcount(code_region));
+    mv_eco2mix_tr_dedup
+    | where ts_utc  between (debut .. fin)
+    | summarize regions_ok = countif(isnotnull(consommation)),
+                thermique = sum(thermique), nucleaire = sum(nucleaire), eolien = sum(eolien),
+                solaire = sum(solaire), hydraulique = sum(hydraulique), bioenergies = sum(bioenergies),
+                consommation = sum(consommation)
+        by ts_utc
+    | where regions_ok == nb_regions
+    | extend production = thermique + nucleaire + eolien + solaire + hydraulique + bioenergies
+    | extend part_thermique = thermique / production
+}
 .create-or-alter materialized-view  mv_eco2mix_tr_dedup on table eco2mix_tr { eco2mix_tr
     | summarize arg_max(fetched_at_utc, *) by code_region, ts_utc }
+.alter table eco2mix_tr_raw policy retention @'{"SoftDeletePeriod":"365.00:00:00","Recoverability":"Enabled"}'
 .alter table eco2mix_tr policy update "[{\"IsEnabled\":true,\"Source\":\"eco2mix_tr_raw\",\"Query\":\"f_eco2mix_tr_typage()\",\"IsTransactional\":false,\"PropagateIngestionProperties\":false,\"ManagedIdentity\":null}]"

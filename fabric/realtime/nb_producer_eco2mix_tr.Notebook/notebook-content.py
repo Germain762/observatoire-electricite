@@ -102,13 +102,21 @@ def lire_fenetre(heures: int) -> list[dict]:
 from azure.eventhub import EventHubProducerClient, EventData
 
 def envoyer(lignes: list[dict]) -> None:
+    fetched_at = datetime.now(timezone.utc).isoformat()   # le même horodatage pour toute l'exécution
     client = EventHubProducerClient.from_connection_string(CONNECTION_STRING)
     with client:
         lot = client.create_batch()
         for ligne in lignes:
-            ligne["fetched_at_utc"] = datetime.now(timezone.utc).isoformat()
-            lot.add(EventData(json.dumps(ligne)))
-        client.send_batch(lot)
+            ligne["fetched_at_utc"] = fetched_at
+            evt = EventData(json.dumps(ligne))
+            try:
+                lot.add(evt)
+            except ValueError:            # lot plein : on l'envoie et on en ouvre un nouveau
+                client.send_batch(lot)
+                lot = client.create_batch()
+                lot.add(evt)
+        if len(lot) > 0:
+            client.send_batch(lot)
 
 # METADATA ********************
 

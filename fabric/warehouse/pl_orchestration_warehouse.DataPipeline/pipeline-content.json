@@ -1,0 +1,177 @@
+{
+  "properties": {
+    "activities": [
+      {
+        "type": "SqlServerStoredProcedure",
+        "typeProperties": {
+          "storedProcedureName": "[etl].[charger_dim_date]"
+        },
+        "linkedService": {
+          "name": "wh_electricite",
+          "properties": {
+            "type": "DataWarehouse",
+            "typeProperties": {
+              "artifactId": "2be0ef62-e11e-8c31-4bbe-c4f93e6c16e5",
+              "endpoint": "7kzeddtgtqxubf7clpqkvja2jm-exyjblietkredmtrtnmidzpgvu.datawarehouse.fabric.microsoft.com",
+              "workspaceId": "00000000-0000-0000-0000-000000000000"
+            },
+            "annotations": []
+          }
+        },
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 0,
+          "retryIntervalInSeconds": 30,
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "name": "charger_dim_date",
+        "dependsOn": []
+      },
+      {
+        "type": "SqlServerStoredProcedure",
+        "typeProperties": {
+          "storedProcedureName": "[etl].[charger_dim_region]"
+        },
+        "linkedService": {
+          "name": "wh_electricite",
+          "properties": {
+            "type": "DataWarehouse",
+            "typeProperties": {
+              "artifactId": "2be0ef62-e11e-8c31-4bbe-c4f93e6c16e5",
+              "endpoint": "7kzeddtgtqxubf7clpqkvja2jm-exyjblietkredmtrtnmidzpgvu.datawarehouse.fabric.microsoft.com",
+              "workspaceId": "00000000-0000-0000-0000-000000000000"
+            },
+            "annotations": []
+          }
+        },
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 0,
+          "retryIntervalInSeconds": 30,
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "name": "charger_dim_region",
+        "dependsOn": [
+          {
+            "activity": "charger_dim_date",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "SqlServerStoredProcedure",
+        "typeProperties": {
+          "storedProcedureName": "[etl].[charger_fact_production]",
+          "storedProcedureParameters": {
+            "annee_debut": {
+              "value": {
+                "value": "@pipeline().parameters.annee_debut",
+                "type": "Expression"
+              },
+              "type": "Int16"
+            },
+            "run_id": {
+              "value": {
+                "value": "@pipeline().parameters.run_id",
+                "type": "Expression"
+              },
+              "type": "String"
+            }
+          }
+        },
+        "linkedService": {
+          "name": "wh_electricite",
+          "properties": {
+            "type": "DataWarehouse",
+            "typeProperties": {
+              "artifactId": "2be0ef62-e11e-8c31-4bbe-c4f93e6c16e5",
+              "endpoint": "7kzeddtgtqxubf7clpqkvja2jm-exyjblietkredmtrtnmidzpgvu.datawarehouse.fabric.microsoft.com",
+              "workspaceId": "00000000-0000-0000-0000-000000000000"
+            },
+            "annotations": []
+          }
+        },
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 0,
+          "retryIntervalInSeconds": 30,
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "name": "charger fact_production_horaire",
+        "dependsOn": [
+          {
+            "activity": "charger_dim_region",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "SqlServerStoredProcedure",
+        "typeProperties": {
+          "storedProcedureName": "[etl].[charger_fact_consommation]",
+          "storedProcedureParameters": {
+            "annee_debut": {
+              "value": {
+                "value": "@pipeline().parameters.annee_debut",
+                "type": "Expression"
+              },
+              "type": "Int16"
+            },
+            "run_id": {
+              "value": {
+                "value": "@pipeline().parameters.run_id",
+                "type": "Expression"
+              },
+              "type": "String"
+            }
+          }
+        },
+        "linkedService": {
+          "name": "wh_electricite",
+          "properties": {
+            "type": "DataWarehouse",
+            "typeProperties": {
+              "artifactId": "2be0ef62-e11e-8c31-4bbe-c4f93e6c16e5",
+              "endpoint": "7kzeddtgtqxubf7clpqkvja2jm-exyjblietkredmtrtnmidzpgvu.datawarehouse.fabric.microsoft.com",
+              "workspaceId": "00000000-0000-0000-0000-000000000000"
+            },
+            "annotations": []
+          }
+        },
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 0,
+          "retryIntervalInSeconds": 30,
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "name": "charger fact_conso_meteo_horaire",
+        "dependsOn": [
+          {
+            "activity": "charger fact_production_horaire",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ]
+      }
+    ],
+    "parameters": {
+      "annee_debut": {
+        "type": "int",
+        "defaultValue": 2021
+      },
+      "run_id": {
+        "type": "string",
+        "defaultValue": "manuel"
+      }
+    }
+  }
+}
