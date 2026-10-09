@@ -31,7 +31,7 @@
 
 # PARAMETERS CELL ********************
 
-annee_debut = 2025
+annee_debut = 2021
 run_id = "manuel"
 
 # METADATA ********************
@@ -108,10 +108,12 @@ filiere_mw = filiere_mw.filter(F.col("mw").isNotNull())
 
 # CELL ********************
 
-filiere_to_mwh = filiere_mw.groupBy("code_region", F.date_trunc("hour", "ts_utc").alias("heure_utc"), "filiere").agg(
-    (F.sum("mw") * 0.5).alias("mwh"), 
-    F.count("mw").alias("nb_pas")
-).withColumn("annee", F.year("heure_utc"))
+filiere_to_mwh = (
+    filiere_mw.groupBy("code_region", F.date_trunc("hour", "ts_utc").alias("heure_utc"), "filiere")
+            .agg((F.sum("mw") * 0.5).alias("mwh"),  F.count("mw").alias("nb_pas"))
+            .withColumn("annee", F.year("heure_utc"))
+            .withColumn("heure_paris", F.from_utc_timestamp("heure_utc", "Europe/Paris"))
+)
 
 #display(filiere_to_mwh.orderBy("code_region", "heure_utc"))
 
@@ -191,9 +193,10 @@ rayonnement = meteo.select(
     F.timestamp_seconds(F.unix_timestamp("ts_utc") - 3600).alias("ts_utc"),
     "rayonnement_wm2")
 
-consommation = eco2mix.groupBy("code_insee_region", F.date_trunc("hour", "ts_utc").alias("ts_utc")).agg(
-    (F.sum("consommation") * 0.5).alias("conso_mwh"), 
-    F.count("consommation").alias("nb_pas")
+consommation = (
+    eco2mix.groupBy("code_insee_region", F.date_trunc("hour", "ts_utc").alias("ts_utc"))
+            .agg((F.sum("consommation") * 0.5).alias("conso_mwh"), F.count("consommation").alias("nb_pas")
+    )
 )
 #display(consommation.orderBy("code_insee_region", "ts_utc"))                            
 
@@ -209,11 +212,10 @@ consommation = eco2mix.groupBy("code_insee_region", F.date_trunc("hour", "ts_utc
 jointure = (consommation
                 .join(instantane, ["code_insee_region", "ts_utc"], "left")
                 .join(rayonnement,["code_insee_region", "ts_utc"], "left")
-                .withColumn(
-                    "annee", 
-                    F.year("ts_utc"))
+                .withColumn("annee",  F.year("ts_utc"))
+                .withColumn("heure_paris", F.from_utc_timestamp("ts_utc", "Europe/Paris"))
                 .select("code_insee_region",
-                    "ts_utc", "conso_mwh", "nb_pas", "temperature_c", "vent_kmh", "rayonnement_wm2", "annee")
+                    "ts_utc", "conso_mwh", "nb_pas", "temperature_c", "vent_kmh", "rayonnement_wm2", "annee", "heure_paris")
                 .withColumnsRenamed({
                     "code_insee_region": "code_region", 
                     "ts_utc": "heure_utc"})
@@ -297,8 +299,7 @@ journalier = (spark.read.table("fact_production_horaire")
                 .withColumn("date_locale", F.to_date(F.from_utc_timestamp("heure_utc", "Europe/Paris")))
                 .filter(F.year("date_locale") >= annee_debut)
                 .groupBy("code_region", "date_locale", "filiere")
-                .agg(F.sum("mwh").alias("mwh"),
-                    F.count("*").alias("nb_heures")))
+                .agg(F.sum("mwh").alias("mwh"), F.count("*").alias("nb_heures")))
 display(journalier)
 
 # METADATA ********************
@@ -314,8 +315,7 @@ w = Window.partitionBy("code_region", "date_locale")
 
 agg_mix = (journalier
             .withColumn("mwh_total_jour", F.sum("mwh").over(w))
-            .withColumn("part", F.when(F.col("mwh_total_jour") != 0,
-                                    F.col("mwh") / F.col("mwh_total_jour")))
+            .withColumn("part", F.when(F.col("mwh_total_jour") != 0, F.col("mwh") / F.col("mwh_total_jour")))
             .withColumn("annee", F.year("date_locale")))
 display(agg_mix)
 

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Warehouse",
+    "displayName": "wh_electricite",
+    "description": ""
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "2be0ef62-e11e-8c31-4bbe-c4f93e6c16e5"
+  }
+}

@@ -35,6 +35,7 @@ def write_slice(df, table, annee_debut):
     else:
         (df.write.format("delta").mode("overwrite")
         .option("replaceWhere", f"annee >= {annee_debut}")
+        .option("mergeSchema", "true")
         .saveAsTable(table))
         print(f"table {table} modifiée avec donéées de {annee_debut}")
 

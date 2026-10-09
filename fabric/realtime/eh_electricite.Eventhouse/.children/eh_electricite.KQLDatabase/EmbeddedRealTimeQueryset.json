@@ -1,0 +1,22 @@
+{
+  "queryset": {
+    "version": "1.0.0",
+    "dataSources": [
+      {
+        "id": "8dfbb195-097c-4fad-8cdd-a3ded23ee993",
+        "clusterUri": "https://trd-65ferat6bedj1bcjta.z0.kusto.fabric.microsoft.com",
+        "type": "Fabric",
+        "databaseItemId": "7e6a186d-43ed-4ee6-8fee-2d6a568d6d4c"
+      }
+    ],
+    "tabs": [
+      {
+        "id": "5fc64e51-29a4-4290-b2c1-52b62a406022",
+        "content": "//***********************************************************************************************************\n// Here are two articles to help you get started with KQL:\n// KQL reference guide - https://aka.ms/KQLguide\n// SQL - KQL conversions - https://aka.ms/sqlcheatsheet\n//***********************************************************************************************************\n\n// Use \"take\" to view a sample number of records in the table and check the data.\neco2mix_tr\n| take 100\n\n// See how many records are in the table.\nYOUR_TABLE_HERE\n| count\n\n// This query returns the number of ingestions per hour in the given table.\nYOUR_TABLE_HERE\n| summarize IngestionCount = count() by bin(ingestion_time(), 1h)\n\n.show table eco2mix_tr_raw policy retention\n.alter-merge table eco2mix_tr_raw policy retention softdelete = 365d\n",
+        "title": "Tab",
+        "dataSourceId": "8dfbb195-097c-4fad-8cdd-a3ded23ee993"
+      }
+    ],
+    "querysetType": "Embedded"
+  }
+}

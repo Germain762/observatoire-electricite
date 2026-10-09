@@ -11,12 +11,6 @@
     ],
     "tabs": [
       {
-        "id": "bdd57d68-cbac-4c83-9b14-0ba53f176a67",
-        "content": "eco2mix_tr_raw | getschema\n\neco2mix_tr_raw\n| summarize nb_versions = count() by code_insee_region, date_heure\n| summarize lignes_uniques = count(), versions_moyennes = avg(nb_versions)\n\n.set-or-append eco2mix_tr <| f_eco2mix_tr_typage()\n\neco2mix_tr\n| count \n\n",
-        "title": "Tab",
-        "dataSourceId": "b5f7bf3d-0c79-478d-bbeb-33addd76bd8a"
-      },
-      {
         "id": "a88f73d8-3298-4725-85e9-76a5170716f1",
         "content": ".create table eco2mix_tr (\n    code_region: string, \n    libelle_region: string, \n    ts_utc: datetime,\n    consommation: real, \n    thermique: real, \n    nucleaire: real, \n    eolien: real,\n    solaire: real, \n    hydraulique: real, \n    bioenergies: real,\n    pompage: real, \n    ech_physiques: real,\n    fetched_at_utc: datetime\n)\n\n.show ingestion failures\n| where Table == \"eco2mix_tr\"",
         "title": "table eco2mix_tr",
@@ -38,6 +32,18 @@
         "id": "8125808e-37f7-41d9-81a5-02d374e9058e",
         "content": ".create materialized-view with (backfill = true) mv_eco2mix_tr_dedup on table eco2mix_tr {\n    eco2mix_tr\n    | summarize arg_max(fetched_at_utc, *) by code_region, ts_utc\n}\n\nmv_eco2mix_tr_dedup | count\nmaterialized_view(\"mv_eco2mix_tr_dedup\")\n\n.show materialized-view mv_eco2mix_tr_dedup",
         "title": "Materialized View",
+        "dataSourceId": "b5f7bf3d-0c79-478d-bbeb-33addd76bd8a"
+      },
+      {
+        "id": "634efc2d-d95f-475b-95d4-3027c7f14161",
+        "content": "//Délai de publication\nlet debut_producteur = toscalar(eco2mix_tr | summarize min(fetched_at_utc));\neco2mix_tr\n| where isnotnull(consommation) and ts_utc > debut_producteur\n| summarize premiere_valeur =  min(fetched_at_utc) by code_region, ts_utc\n| extend delai_win = (premiere_valeur - ts_utc) / 1m\n| summarize p50 = percentile(delai_win, 50), p95 = percentile(delai_win, 95)\n\n//Nombre de versions différentes\neco2mix_tr\n| summarize versions = dcount(tostring(consommation)) by code_region, ts_utc\n| summarize nb_quarts = count() by versions\n| order by versions asc\n\n//Anomalie de consommation\nmv_eco2mix_tr_dedup\n| where ts_utc > ago(8d) and isnotnull(consommation)\n| make-series conso = avg(consommation) default = real(null) on ts_utc step 15min by libelle_region\n| extend conso = series_fill_linear(conso)\n| extend (anomalies, score, baseline) = series_decompose_anomalies(conso, 2.5)\n| render anomalychart with (anomalycolumns=anomalies)",
+        "title": "Analyse",
+        "dataSourceId": "b5f7bf3d-0c79-478d-bbeb-33addd76bd8a"
+      },
+      {
+        "id": "8c0e0a12-0d53-48c2-bb07-4ea434f19519",
+        "content": ".create-or-alter function with (folder = \"serve\") f_mix_national(debut: datetime, fin: datetime){\n    let nb_regions = toscalar(mv_eco2mix_tr_dedup | summarize dcount(code_region));\n    mv_eco2mix_tr_dedup\n    | where ts_utc  between (debut .. fin)\n    | summarize regions_ok = countif(isnotnull(consommation)),\n                thermique = sum(thermique), nucleaire = sum(nucleaire), eolien = sum(eolien),\n                solaire = sum(solaire), hydraulique = sum(hydraulique), bioenergies = sum(bioenergies),\n                consommation = sum(consommation)\n        by ts_utc\n    | where regions_ok == nb_regions\n    | extend production = thermique + nucleaire + eolien + solaire + hydraulique + bioenergies\n    | extend part_thermique = thermique / production\n}",
+        "title": "f_mix_national",
         "dataSourceId": "b5f7bf3d-0c79-478d-bbeb-33addd76bd8a"
       }
     ],
