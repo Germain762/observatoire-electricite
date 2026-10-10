@@ -26,7 +26,14 @@
           "secureOutput": false
         },
         "name": "charger_dim_date",
-        "dependsOn": []
+        "dependsOn": [
+          {
+            "activity": "nb_refresh_sql_endpoints",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ]
       },
       {
         "type": "SqlServerStoredProcedure",
@@ -161,6 +168,31 @@
             ]
           }
         ]
+      },
+      {
+        "type": "TridentNotebook",
+        "typeProperties": {
+          "notebookId": "5adbec03-5b52-9823-49c8-d2cc9843c544",
+          "workspaceId": "00000000-0000-0000-0000-000000000000",
+          "parameters": {
+            "lakehouses": {
+              "value": "lh_gold,lh_admin",
+              "type": "string"
+            }
+          }
+        },
+        "externalReferences": {
+          "connection": "17638650-b63a-418a-83d6-7569830c78b8"
+        },
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 1,
+          "retryIntervalInSeconds": 30,
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "name": "nb_refresh_sql_endpoints",
+        "dependsOn": []
       }
     ],
     "parameters": {
