@@ -105,6 +105,7 @@ pl_main  (run_id = @pipeline().RunId, annee_debut : 0 = automatique)
 │   ├─ nb_silver_meteo     (en séquence, pas en parallèle : voir « Capacité trial »)
 │   └─ nb_gold
 └─ pl_orchestration_warehouse    (run_id, annee_debut transmis)
+    ├─ nb_refresh_sql_endpoints   (synchronisation forcée des SQL endpoints de lh_gold et lh_admin)
     ├─ etl.charger_dim_date, etl.charger_dim_region
     └─ etl.charger_fact_production, etl.charger_fact_conso_meteo
 ```
@@ -324,7 +325,9 @@ Notebook **Python** (sans Spark), planifié toutes les 15 minutes dans Fabric.
 - **Lecture cross-database** du gold via le SQL analytics endpoint (`lh_gold.dbo.fact_production_horaire`).
 - **Transposition du `replaceWhere`** : `DELETE` de la tranche `annee >= @annee_debut` puis `INSERT ... SELECT`, dans une **transaction**.
 - **`TRY / CATCH`** : `ROLLBACK` puis `THROW` pour relancer l'erreur, afin que le pipeline voie l'échec (même rôle que le `raise` de `publier`). Testé avec un `THROW` forcé : la table reste intacte.
-- **Contrôle contre le journal** : le SQL analytics endpoint synchronise les métadonnées Delta de façon **asynchrone** ; juste après l'écriture par `nb_gold`, il peut encore voir l'ancienne version. Un contrôle de conservation Warehouse ↔ gold ne le détecterait pas (les deux côtés liraient la même version périmée). La procédure compare donc le nombre de lignes chargées au `lignes` journalisé par `nb_gold` pour ce `run_id`, et échoue si le journal n'a pas de ligne pour ce run ou si les comptes diffèrent. Le retry de l'activité couvre les retards ponctuels.
+- **Le retard du SQL endpoint** : le SQL analytics endpoint d'un lakehouse synchronise les métadonnées Delta de façon **asynchrone** ; juste après l'écriture par `nb_gold`, il peut encore voir l'ancienne version des tables. La procédure lirait alors des données périmées sans aucune erreur. Deux protections indépendantes :
+  - **Synchronisation forcée** : `nb_refresh_sql_endpoints` (notebook Python, première activité de `pl_orchestration_warehouse`) appelle l'API REST `POST /v1/workspaces/{id}/sqlEndpoints/{id}/refreshMetadata` pour `lh_gold` et `lh_admin`, attend la fin de l'opération longue (`202` + `Location`) et échoue si une table n'est pas synchronisée.
+  - **Contrôle contre le journal** : un contrôle de conservation Warehouse ↔ gold ne détecterait pas le retard (les deux côtés liraient la même version périmée). La procédure compare donc le nombre de lignes chargées au `lignes` journalisé par `nb_gold` pour ce `run_id`, et échoue si le journal n'a pas de ligne pour ce run ou si les comptes diffèrent.
 - **Cohérence vérifiée** : une requête en étoile (faits × `dim.date` × `dim.filiere`) donne les mêmes totaux annuels que le gold.
 
 ### Sécurité
@@ -401,6 +404,20 @@ Légèrement inférieures aux bilans nationaux de RTE (écart correspondant à l
 | Procédure de faits avec `THROW` forcé | `ROLLBACK`, table inchangée |
 | Requête en étoile | Mêmes totaux annuels que le gold |
 | RLS | Accès restreint à `'28'` → seule la Normandie visible ; accès `'*'` rétabli ensuite |
+| `nb_refresh_sql_endpoints` | Statut `Success` pour toutes les tables de `lh_gold` et `lh_admin` |
+| Relance isolée de `pl_orchestration_warehouse` | Avec `annee_debut` et le `run_id` d'une exécution passée, le chargement passe sans relancer bronze, silver ni gold |
+
+---
+
+## Incidents d'exploitation
+
+| Date | Symptôme | Cause | Détection | Correction |
+|---|---|---|---|---|
+| 07/10/2026 | `nb_gold` refusé par Spark (`TooManyRequestsForCapacity`, HTTP 430) | Capacité trial sans file d'attente ; notebooks silver lancés en parallèle | Échec de l'activité dans `pl_main` | Silver en séquence, retries, expiration des sessions à 10 min, planification la nuit |
+| 07/10/2026 | `fact_production_horaire` bloquée : « heures incomplètes » | Ligne vide publiée par RTE à la jonction définitif 2025 / consolidé 2026 | Contrôle `nb_pas` | Règle à deux niveaux (avertissement / bloquant) |
+| 10/10/2026 | `etl.charger_fact_production` en échec : « Aucune écriture gold journalisée pour ce run » | SQL endpoint de `lh_admin` / `lh_gold` pas encore synchronisé à 05:00, malgré 2 retries de 120 s | Contrôle contre `log_execution` (transaction annulée, Warehouse intact) | `run_id` vérifiés identiques sur toute la chaîne ; rattrapage par relance de `pl_orchestration_warehouse` seul avec le `run_id` du matin ; ajout de `nb_refresh_sql_endpoints` |
+
+Sans le contrôle contre le journal, l'incident du 10/10 aurait rechargé silencieusement les données de la veille avec un pipeline au vert.
 
 ---
 
@@ -438,7 +455,7 @@ Une RLS SQL dans le Warehouse fait basculer un modèle **Direct Lake on SQL** en
 | 1 | Socle, Git, ingestion bronze | ✅ |
 | 2 | Médaillon Spark (silver, gold), contrôles, journalisation, orchestration `pl_main` | ✅ |
 | 3 | Real-Time Intelligence : producteur, Eventstream, Eventhouse / KQL, Real-Time Dashboard, Activator | ✅ |
-| 4 | Warehouse : modèle en étoile, procédures transactionnelles, contrôles, CLS / DDM / RLS | ✅ (exécution planifiée complète à confirmer) |
+| 4 | Warehouse : modèle en étoile, procédures transactionnelles, contrôles, synchronisation forcée des SQL endpoints, CLS / DDM / RLS | ✅ |
 | 5 | Power BI : modèle sémantique Direct Lake on OneLake, RLS du modèle | ⏳ |
 | 6 | Deployment pipeline dev → test, variable libraries, OneLake security, monitoring | ⏳ |
 
