@@ -1,0 +1,61 @@
+table Filière
+	lineageTag: 3a7505e2-3b1f-4b66-85e4-3b87ab354952
+	sourceLineageTag: [dim].[filiere]
+
+	column code_filiere
+		dataType: string
+		lineageTag: 5378635b-470f-48c4-b89f-f8c85b8cc90a
+		sourceLineageTag: code_filiere
+		summarizeBy: none
+		sourceColumn: code_filiere
+
+		annotation SummarizationSetBy = Automatic
+
+	column libellé
+		dataType: string
+		lineageTag: 730e3f42-0bfd-46c0-ae56-36d2bbdb21d3
+		sourceLineageTag: libellé
+		summarizeBy: none
+		sourceColumn: libellé
+
+		annotation SummarizationSetBy = Automatic
+
+	column renouvelable
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 4d548933-0a03-494d-913c-343ca580215e
+		sourceLineageTag: renouvelable
+		summarizeBy: none
+		sourceColumn: renouvelable
+
+		annotation SummarizationSetBy = Automatic
+
+	column bas_carbone
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: aa0e7014-991c-4bce-92de-b2297f31d674
+		sourceLineageTag: bas_carbone
+		summarizeBy: none
+		sourceColumn: bas_carbone
+
+		annotation SummarizationSetBy = Automatic
+
+	column pilotable
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 7d59c124-d7f6-415f-bd19-e6a05a4a160e
+		sourceLineageTag: pilotable
+		summarizeBy: none
+		sourceColumn: pilotable
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Filière = entity
+		mode: directLake
+		source
+			entityName: filiere
+			schemaName: dim
+			expressionSource: 'DirectLake – wh_electricite'
+
+	changedProperty = Name
+

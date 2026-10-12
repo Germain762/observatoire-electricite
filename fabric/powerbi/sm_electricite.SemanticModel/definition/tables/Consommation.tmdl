@@ -1,0 +1,142 @@
+table Consommation
+	lineageTag: 1f1a390c-38e8-4f61-8692-b0c247bb6660
+	sourceLineageTag: [fact].[conso_meteo_horaire]
+
+	measure 'Consommation MWh' = SUM ( 'Consommation'[conso_mwh] )
+		formatString: " #,0"
+		displayFolder: Consommation
+		lineageTag: a616c694-22da-4dcf-88ac-556e068d1b18
+
+		changedProperty = Name
+
+		changedProperty = DisplayFolder
+
+		changedProperty = FormatString
+
+		annotation PBI_FormatHint = {"isCustom":true}
+
+	measure 'Taux de couverture' = DIVIDE ( [Production MWh], [Consommation MWh] )
+		formatString: " 0.00"
+		displayFolder: Consommation
+		lineageTag: 089725b7-bd51-4dcb-ae8b-c8f29fc6b07c
+
+		changedProperty = Name
+
+		changedProperty = DisplayFolder
+
+		changedProperty = FormatString
+
+		annotation PBI_FormatHint = {"isCustom":true}
+
+	column date_key
+		dataType: int64
+		formatString: 0
+		lineageTag: 6329bef3-76f1-4d76-a871-9897c3778097
+		sourceLineageTag: date_key
+		summarizeBy: none
+		sourceColumn: date_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column heure_locale
+		dataType: int64
+		formatString: 0
+		lineageTag: fbf4c92f-8580-48ae-aa1e-e98d8c1e6a17
+		sourceLineageTag: heure_locale
+		summarizeBy: sum
+		sourceColumn: heure_locale
+
+		annotation SummarizationSetBy = Automatic
+
+	column heure_utc
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: cbcd72de-a06d-41fb-b36f-09a0225fdbb1
+		sourceLineageTag: heure_utc
+		summarizeBy: none
+		sourceColumn: heure_utc
+
+		annotation SummarizationSetBy = Automatic
+
+	column code_region
+		dataType: string
+		lineageTag: 326adaed-a8fb-4e50-89f8-ee44db5b46e6
+		sourceLineageTag: code_region
+		summarizeBy: none
+		sourceColumn: code_region
+
+		annotation SummarizationSetBy = Automatic
+
+	column conso_mwh
+		dataType: double
+		lineageTag: c2919e18-7fa5-4a76-b599-37e3bde43b6d
+		sourceLineageTag: conso_mwh
+		summarizeBy: sum
+		sourceColumn: conso_mwh
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column temperature_c
+		dataType: double
+		lineageTag: c7ccb134-b084-4259-afb3-0927268db59b
+		sourceLineageTag: temperature_c
+		summarizeBy: sum
+		sourceColumn: temperature_c
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column vent_kmh
+		dataType: double
+		lineageTag: 100d49c8-5805-4be6-b373-c19a4a9ee90f
+		sourceLineageTag: vent_kmh
+		summarizeBy: sum
+		sourceColumn: vent_kmh
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column rayonnement_wm2
+		dataType: double
+		lineageTag: 4a9baa1e-63b4-4c4a-a2f0-e3ecbbbe344e
+		sourceLineageTag: rayonnement_wm2
+		summarizeBy: sum
+		sourceColumn: rayonnement_wm2
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column nb_pas
+		dataType: int64
+		formatString: 0
+		lineageTag: d6a0c059-9b2c-45d7-b8c0-073883187d88
+		sourceLineageTag: nb_pas
+		summarizeBy: sum
+		sourceColumn: nb_pas
+
+		annotation SummarizationSetBy = Automatic
+
+	column annee
+		dataType: int64
+		formatString: 0
+		lineageTag: 7ab6060d-c19c-4abe-9a29-2c57e940ee8a
+		sourceLineageTag: annee
+		summarizeBy: sum
+		sourceColumn: annee
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Consommation = entity
+		mode: directLake
+		source
+			entityName: conso_meteo_horaire
+			schemaName: fact
+			expressionSource: 'DirectLake – wh_electricite'
+
+	changedProperty = Name
+

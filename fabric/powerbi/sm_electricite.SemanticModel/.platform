@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "SemanticModel",
+    "displayName": "sm_electricite"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "18c48d42-6944-af69-4a06-64311f00487c"
+  }
+}
