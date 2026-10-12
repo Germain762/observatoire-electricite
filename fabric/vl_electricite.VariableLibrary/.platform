@@ -1,12 +1,11 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
   "metadata": {
-    "type": "Notebook",
-    "displayName": "Notebook Test eco2mix",
-    "description": "New notebook"
+    "type": "VariableLibrary",
+    "displayName": "vl_electricite"
   },
   "config": {
     "version": "2.0",
-    "logicalId": "820b898e-cf0b-b8b6-487a-1698ff521503"
+    "logicalId": "3c087ae0-0640-9cac-4770-674c2ad579e6"
   }
 }

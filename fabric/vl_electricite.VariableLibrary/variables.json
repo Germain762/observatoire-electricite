@@ -1,0 +1,41 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/variableLibrary/definition/variables/1.0.0/schema.json",
+  "variables": [
+    {
+      "name": "environnement",
+      "note": "Définit l'environnement",
+      "type": "String",
+      "value": "dev"
+    },
+    {
+      "name": "alertes_actives",
+      "note": "",
+      "type": "Boolean",
+      "value": true
+    },
+    {
+      "name": "email_alertes",
+      "note": "",
+      "type": "String",
+      "value": "germain@germainlepinaygmail.onmicrosoft.com"
+    },
+    {
+      "name": "workspace_id",
+      "note": "",
+      "type": "String",
+      "value": "ad90f025-9a04-41a2-b271-9b5881e5e6ad"
+    },
+    {
+      "name": "lh_bronze_id",
+      "note": "",
+      "type": "String",
+      "value": "5cfb5a02-b6fb-48e7-8e22-3cb56bbb5daf"
+    },
+    {
+      "name": "sm_electricite_id",
+      "note": "",
+      "type": "String",
+      "value": "1f00487c-6431-4a06-af69-694418c48d42"
+    }
+  ]
+}

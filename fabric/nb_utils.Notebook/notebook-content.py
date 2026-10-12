@@ -11,6 +11,19 @@
 
 # CELL ********************
 
+_vl = notebookutils.variableLibrary.getLibrary("vl_electricite")
+ENVIRONNEMENT = _vl.environnement
+print(_vl.environnement, _vl.alertes_actives, _vl.email_alertes)
+
+# METADATA ********************
+
+# META {
+# META   "language": "python",
+# META   "language_group": "synapse_pyspark"
+# META }
+
+# CELL ********************
+
 from pyspark.sql import functions as F
 
 def row_hash(cols):
@@ -64,9 +77,9 @@ def lever_si_echecs(erreurs, table):
 from datetime import datetime, timezone
 
 def log_execution(table_cible, statut, lignes=None, message=None):
-    schema = ("run_id string, notebook string, table_cible string, statut string, "
+    schema = ("run_id string, environnement string, notebook string, table_cible string, statut string, "
               "lignes long, message string, horodatage_utc timestamp")
-    ligne = [(run_id, notebookutils.runtime.context["currentNotebookName"], table_cible,
+    ligne = [(run_id, ENVIRONNEMENT, notebookutils.runtime.context["currentNotebookName"], table_cible,
               statut, lignes, message, datetime.now(timezone.utc))]
     spark.createDataFrame(ligne, schema).write.mode("append").saveAsTable("lh_admin.dbo.log_execution")
 
