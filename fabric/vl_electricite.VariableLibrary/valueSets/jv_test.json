@@ -1,0 +1,26 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/variableLibrary/definition/valueSet/1.0.0/schema.json",
+  "name": "jv_test",
+  "variableOverrides": [
+    {
+      "name": "environnement",
+      "value": "test"
+    },
+    {
+      "name": "alertes_actives",
+      "value": false
+    },
+    {
+      "name": "workspace_id",
+      "value": ""
+    },
+    {
+      "name": "lh_bronze_id",
+      "value": ""
+    },
+    {
+      "name": "sm_electricite_id",
+      "value": ""
+    }
+  ]
+}

@@ -5,12 +5,12 @@
         "type": "InvokePipeline",
         "typeProperties": {
           "parameters": {
-            "mode": {
-              "value": "manuel\n",
-              "type": "Expression"
-            },
             "run_id": {
               "value": "@pipeline().RunId",
+              "type": "Expression"
+            },
+            "annee_debut": {
+              "value": "@variables('annee_debut_effective')",
               "type": "Expression"
             }
           },
@@ -130,12 +130,95 @@
             ]
           }
         ]
+      },
+      {
+        "type": "IfCondition",
+        "typeProperties": {
+          "expression": {
+            "value": "@pipeline().libraryVariables.vl_electricite_alertes_actives",
+            "type": "Expression"
+          },
+          "ifTrueActivities": [
+            {
+              "type": "Office365Email",
+              "typeProperties": {
+                "body": "<p>@{pipeline().RunId}</p>\n<p>@{pipeline()?.TriggerEvent?.Source}</p>\n<p>@{activity('pl_orchestration_bronze').output}</p>",
+                "to": {
+                  "value": "@pipeline().libraryVariables.vl_electricite_email_alertes",
+                  "type": "Expression"
+                },
+                "subject": "Erreur"
+              },
+              "externalReferences": {
+                "connection": "f2f197d6-fd28-4e77-8cfc-65cbf95c5eb7"
+              },
+              "policy": {
+                "timeout": "0.12:00:00",
+                "retry": 0,
+                "retryIntervalInSeconds": 30,
+                "secureInput": false,
+                "secureOutput": false
+              },
+              "name": "Office365Email1",
+              "dependsOn": []
+            }
+          ],
+          "ifFalseActivities": []
+        },
+        "name": "If alertes_actives",
+        "dependsOn": [
+          {
+            "activity": "pl_orchestration_bronze",
+            "dependencyConditions": [
+              "Failed"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "Fail",
+        "typeProperties": {
+          "message": {
+            "value": "@pipeline().RunId",
+            "type": "Expression"
+          },
+          "errorCode": {
+            "value": "@activity('pl_orchestration_bronze').output",
+            "type": "Expression"
+          }
+        },
+        "name": "Fail1",
+        "dependsOn": [
+          {
+            "activity": "If alertes_actives",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ]
       }
     ],
     "parameters": {
       "annee_debut": {
         "type": "string",
         "defaultValue": "0"
+      }
+    },
+    "libraryVariables": {
+      "vl_electricite_environnement": {
+        "type": "String",
+        "variableName": "environnement",
+        "libraryName": "vl_electricite"
+      },
+      "vl_electricite_alertes_actives": {
+        "type": "Bool",
+        "variableName": "alertes_actives",
+        "libraryName": "vl_electricite"
+      },
+      "vl_electricite_email_alertes": {
+        "type": "String",
+        "variableName": "email_alertes",
+        "libraryName": "vl_electricite"
       }
     },
     "variables": {

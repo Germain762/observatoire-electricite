@@ -198,8 +198,14 @@
         "type": "PBISemanticModelRefresh",
         "typeProperties": {
           "method": "POST",
-          "groupId": "ad90f025-9a04-41a2-b271-9b5881e5e6ad",
-          "datasetId": "1f00487c-6431-4a06-af69-694418c48d42",
+          "groupId": {
+            "value": "@pipeline().libraryVariables.vl_electricite_workspace_id",
+            "type": "Expression"
+          },
+          "datasetId": {
+            "value": "@pipeline().libraryVariables.vl_electricite_sm_electricite_id",
+            "type": "Expression"
+          },
           "commitMode": "Transactional",
           "objects": [
             {
@@ -253,6 +259,18 @@
       "run_id": {
         "type": "string",
         "defaultValue": "manuel"
+      }
+    },
+    "libraryVariables": {
+      "vl_electricite_workspace_id": {
+        "type": "String",
+        "variableName": "workspace_id",
+        "libraryName": "vl_electricite"
+      },
+      "vl_electricite_sm_electricite_id": {
+        "type": "String",
+        "variableName": "sm_electricite_id",
+        "libraryName": "vl_electricite"
       }
     }
   }

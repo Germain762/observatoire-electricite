@@ -25,7 +25,7 @@
         "typeProperties": {
           "parameters": {
             "annee_debut": {
-              "value": "@if(equals(pipeline().parameters.mode, 'full'), 2021,\n    sub(int(formatDateTime(utcNow(), 'yyyy')), 1))",
+              "value": "@pipeline().parameters.annee_debut",
               "type": "Expression"
             },
             "annee_fin": {
@@ -197,9 +197,9 @@
       }
     ],
     "parameters": {
-      "mode": {
+      "annee_debut": {
         "type": "string",
-        "defaultValue": "incremental"
+        "defaultValue": "2021"
       },
       "run_id": {
         "type": "string",
