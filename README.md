@@ -28,7 +28,8 @@ consommation / température, en historique (batch) comme en quasi temps réel (s
 API ODRÉ (cons-def) ─┐
                      ├─► Data Factory ─► lh_bronze ─► Spark ─► lh_silver ─► lh_gold ─► wh_electricite (étoile, sécurité)
 API Open-Meteo ──────┘                                                                        │
-                                                                                              └─► Power BI Direct Lake (étape 5)
+                                                                     sm_electricite (Direct Lake on OneLake) ◄─┘
+                                                                              └─► rpt_electricite
 
                          STREAMING (toutes les 15 min)
 API ODRÉ (tr) ─► nb_producer_eco2mix_tr ─► es_eco2mix_tr ─► eh_electricite (KQL) ─► rtd_electricite
@@ -58,7 +59,7 @@ Le streaming suit la même logique en trois couches dans l'Eventhouse : table br
 | Dossier Git | `/fabric` pour les items Fabric, la racine reste libre pour la doc et le code hors Fabric |
 | Lakehouses | `lh_bronze`, `lh_silver`, `lh_gold`, `lh_admin` |
 | Format des modèles sémantiques | Grands modèles sémantiques, identique sur les deux workspaces |
-| Dossiers du workspace | Un dossier par couche (`bronze`, `silver`, `gold`, `realtime`, `warehouse`) |
+| Dossiers du workspace | Un dossier par couche (`bronze`, `silver`, `gold`, `realtime`, `warehouse`, `powerbi`) |
 | Calcul Spark | Starter pool ; délai d'expiration des sessions réduit à 10 min |
 
 ### Structure du repo
@@ -84,6 +85,8 @@ observatoire-electricite/
 | `kqs_` | KQL Queryset |
 | `rtd_` | Real-Time Dashboard |
 | `act_` | Activator |
+| `sm_` | Modèle sémantique |
+| `rpt_` | Rapport Power BI |
 | `cnx_` | Connexion |
 
 Colonnes temporelles : le fuseau est toujours explicite dans le nom (`ts_utc`, `ts_paris`, `heure_utc`, `heure_paris`, `date_locale`).
@@ -107,7 +110,8 @@ pl_main  (run_id = @pipeline().RunId, annee_debut : 0 = automatique)
 └─ pl_orchestration_warehouse    (run_id, annee_debut transmis)
     ├─ nb_refresh_sql_endpoints   (synchronisation forcée des SQL endpoints de lh_gold et lh_admin)
     ├─ etl.charger_dim_date, etl.charger_dim_region
-    └─ etl.charger_fact_production, etl.charger_fact_conso_meteo
+    ├─ etl.charger_fact_production, etl.charger_fact_conso_meteo
+    └─ Actualisation de sm_electricite (reframing explicite)
 ```
 
 - **Planification** : `pl_main` tous les jours à 05:00 (fuseau de Paris), la nuit pour éviter les conflits de capacité avec le développement interactif.
@@ -406,6 +410,11 @@ Légèrement inférieures aux bilans nationaux de RTE (écart correspondant à l
 | RLS | Accès restreint à `'28'` → seule la Normandie visible ; accès `'*'` rétabli ensuite |
 | `nb_refresh_sql_endpoints` | Statut `Success` pour toutes les tables de `lh_gold` et `lh_admin` |
 | Relance isolée de `pl_orchestration_warehouse` | Avec `annee_debut` et le `run_id` d'une exécution passée, le chargement passe sans relancer bronze, silver ni gold |
+| Mode du modèle sémantique | TMDL : connecteur « Azure Data Lake Storage » (Direct Lake on OneLake) |
+| RLS du modèle | « Tester en tant que rôle » avec l'utilisateur `'28'` → seule la Normandie, sur toutes les pages |
+| Reframing | `pl_main` se termine par l'actualisation de `sm_electricite`, visible dans l'historique d'actualisation |
+| Cohérence du rapport | Totaux annuels identiques à ceux du gold |
+| Performances | Analyseur de performances : aucune requête DirectQuery |
 
 ---
 
@@ -429,21 +438,70 @@ Sans le contrôle contre le journal, l'incident du 10/10 aurait rechargé silenc
 
 ---
 
-## Décisions pour l'étape 5 (Power BI)
+## Power BI
 
-Une RLS SQL dans le Warehouse fait basculer un modèle **Direct Lake on SQL** en DirectQuery. Décision :
+### Choix du mode : Direct Lake on OneLake
 
-- Modèle sémantique en **Direct Lake on OneLake** sur les tables du Warehouse : lecture directe des fichiers Delta, jamais de bascule en DirectQuery.
-- Ce mode **n'applique pas** la RLS SQL : la sécurité du rapport est assurée par une **RLS dans le modèle** (rôle DAX).
-- Pour ne définir les droits qu'une fois, la table `securite.acces_region` est intégrée (masquée) au modèle ; le rôle DAX filtre `dim.region` avec `USERPRINCIPALNAME()` et la même logique `'*'`. Les droits vivent dans une table, appliqués par deux moteurs.
-- La RLS SQL reste en place pour les accès SQL directs.
+| | Direct Lake on SQL | Direct Lake on OneLake (retenu) |
+|---|---|---|
+| Lecture des données | Via le SQL endpoint du Warehouse | Directement les fichiers Delta dans OneLake |
+| Sécurité SQL du Warehouse (RLS, CLS, DDM) | Appliquée, mais bascule en DirectQuery | **Ignorée** |
+| Bascule en DirectQuery | Oui | Jamais |
+
+Une RLS SQL dans le Warehouse ferait basculer un modèle Direct Lake on SQL en DirectQuery. Le mode OneLake garde les performances de Direct Lake, mais n'applique aucune sécurité SQL : la sécurité du rapport est donc assurée **dans le modèle**. Le mode se vérifie dans le TMDL (nœud Expressions) : connecteur « Azure Data Lake Storage ».
+
+### Modèle sémantique `sm_electricite`
+
+- **Créé depuis Power BI Desktop** (catalogue OneLake → `wh_electricite`), édité en direct dans le workspace.
+- **Tables** : Date, Région, Filière, Production, Consommation, Accès région (masquée). Noms lisibles, clés techniques masquées.
+- **`contact_email` exclu du modèle** : le masquage dynamique du Warehouse ne s'appliquant pas en mode OneLake, la colonne aurait été lisible en clair. Ce qui ne doit pas être vu n'entre pas dans le modèle.
+- **Relations** plusieurs-à-un, filtre dans un seul sens, des faits vers Date, Région et Filière ; aucune relation sur Accès région.
+- **Table de dates** : `dim.date` marquée comme table de dates ; libellés de mois et de jours triés par leur numéro. Aucune colonne calculée (en préversion dans ce mode) : les libellés viennent du Warehouse.
+
+### Mesures
+
+| Mesure | Rôle |
+|---|---|
+| `Production MWh`, `Production TWh` | Sommes de base |
+| `Part filière` | Rapport des sommes avec `REMOVEFILTERS('Filière')` au dénominateur : une part se calcule en mesure, jamais en colonne agrégée |
+| `Part bas carbone` | Part des filières `bas_carbone` dans la production |
+| `Consommation MWh`, `Taux de couverture` | Production / consommation : au-dessus de 1, la région exporte vers ses voisines |
+| `Production N-1`, `Évolution N/N-1` | Intelligence temporelle sur la table de dates |
+| `Heures incomplètes` | Heures avec `nb_pas < 2` : la qualité de données est visible dans le rapport lui-même |
+
+### Sécurité du modèle
+
+- **Rôle `lecteur_regional`** avec deux filtres DAX :
+  - sur Région : codes autorisés pour `USERPRINCIPALNAME()` lus dans Accès région, avec la même logique `'*'` que la fonction de prédicat SQL ; le filtre se propage aux faits par les relations ;
+  - sur Accès région : `[utilisateur] = USERPRINCIPALNAME()`, pour qu'un lecteur ne voie pas les droits des autres (masquer une table ne la protège pas).
+- **Une seule source de droits** : la table `securite.acces_region`, appliquée par deux moteurs (fonction de prédicat SQL pour les accès SQL directs, rôle DAX pour Power BI). Ajouter un lecteur reste un simple `INSERT`.
+- **Constat** : dans un modèle sémantique, la RLS ne s'applique qu'aux lecteurs ; administrateurs, membres et contributeurs du workspace n'y sont pas soumis. C'est l'inverse de la RLS du Warehouse, qui s'applique aussi à l'administrateur.
+- **Test sans deuxième compte** : « Tester en tant que rôle » dans le service, avec l'UPN de la ligne `'28'` → seule la Normandie apparaît, sur toutes les pages.
+- **Connexion à identité fixe** recommandée par la documentation pour une RLS sur un modèle Direct Lake : le modèle lit OneLake avec une identité unique plutôt qu'avec celle de chaque lecteur.
+
+### Reframing explicite
+
+Un modèle Direct Lake pointe sur une **version** des tables Delta ; le **reframing** le fait pointer vers la dernière. La mise à jour automatique est désactivée et le reframing est déclenché par une activité d'actualisation du modèle **à la fin** de `pl_orchestration_warehouse`. Les procédures chargeant les tables l'une après l'autre, un reframing automatique aurait pu montrer la production du jour à côté de la consommation de la veille. Le rapport passe ainsi d'un état cohérent à un autre, en une seule fois — le même principe que les transactions SQL, appliqué au modèle.
+
+### Rapport `rpt_electricite`
+
+| Page | Contenu |
+|---|---|
+| Vue nationale | Production mensuelle par filière, part bas carbone, évolution N/N-1, lien vers `rtd_electricite` |
+| Régions | Matrice région × production, consommation, taux de couverture, part bas carbone |
+| Consommation et température | Nuage de points des moyennes journalières, segment par région |
+| Qualité | `Heures incomplètes` dans le temps |
+
+Construit avec l'Analyseur de performances ouvert : toutes les requêtes en Direct Lake, aucune en DirectQuery.
+
+Le modèle (TMDL) et le rapport (PBIR) sont versionnés dans Git comme les autres items, avec un diff lisible.
 
 ---
 
 ## Maintenance des tables (prévu)
 
 - Pas d'`OPTIMIZE` dans les notebooks de chargement ; prévu : un `nb_maintenance` planifié (`OPTIMIZE` puis `VACUUM`) et l'*optimize write* sur les tables gold.
-- À vérifier pour l'étape 5 : V-Order sur les tables lues en Direct Lake.
+- À vérifier : V-Order sur les tables lues en Direct Lake.
 - KQL : fixer explicitement la **politique de rétention** de `eco2mix_tr_raw` (seule archive des valeurs temps réel publiées).
 
 ---
@@ -456,7 +514,7 @@ Une RLS SQL dans le Warehouse fait basculer un modèle **Direct Lake on SQL** en
 | 2 | Médaillon Spark (silver, gold), contrôles, journalisation, orchestration `pl_main` | ✅ |
 | 3 | Real-Time Intelligence : producteur, Eventstream, Eventhouse / KQL, Real-Time Dashboard, Activator | ✅ |
 | 4 | Warehouse : modèle en étoile, procédures transactionnelles, contrôles, synchronisation forcée des SQL endpoints, CLS / DDM / RLS | ✅ |
-| 5 | Power BI : modèle sémantique Direct Lake on OneLake, RLS du modèle | ⏳ |
+| 5 | Power BI : modèle sémantique Direct Lake on OneLake, mesures, RLS du modèle, reframing explicite, rapport | ✅ |
 | 6 | Deployment pipeline dev → test, variable libraries, OneLake security, monitoring | ⏳ |
 
 ### Bonus non réalisés

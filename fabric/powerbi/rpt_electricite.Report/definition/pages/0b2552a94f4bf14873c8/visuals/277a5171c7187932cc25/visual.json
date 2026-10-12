@@ -1,0 +1,104 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.14.0/schema.json",
+  "name": "277a5171c7187932cc25",
+  "position": {
+    "x": 9.6285289747399716,
+    "y": 0,
+    "z": 0,
+    "height": 540.80237741456165,
+    "width": 950.01485884101044,
+    "tabOrder": 0
+  },
+  "visual": {
+    "visualType": "pivotTable",
+    "query": {
+      "queryState": {
+        "Rows": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Région"
+                    }
+                  },
+                  "Property": "libelle_region"
+                }
+              },
+              "queryRef": "Région.libelle_region",
+              "nativeQueryRef": "libelle_region",
+              "active": true
+            }
+          ]
+        },
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Production"
+                    }
+                  },
+                  "Property": "Production MWh"
+                }
+              },
+              "queryRef": "Production.Production MWh",
+              "nativeQueryRef": "Production MWh"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Production"
+                    }
+                  },
+                  "Property": "Part bas carbone"
+                }
+              },
+              "queryRef": "Production.Part bas carbone",
+              "nativeQueryRef": "Part bas carbone"
+            },
+            {
+              "field": {
+                "Aggregation": {
+                  "Expression": {
+                    "Column": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Entity": "Consommation"
+                        }
+                      },
+                      "Property": "conso_mwh"
+                    }
+                  },
+                  "Function": 0
+                }
+              },
+              "queryRef": "Sum(Consommation.conso_mwh)",
+              "nativeQueryRef": "Somme de conso_mwh"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Consommation"
+                    }
+                  },
+                  "Property": "Taux de couverture"
+                }
+              },
+              "queryRef": "Consommation.Taux de couverture",
+              "nativeQueryRef": "Taux de couverture"
+            }
+          ]
+        }
+      }
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

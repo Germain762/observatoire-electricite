@@ -1,0 +1,84 @@
+table Région
+	lineageTag: fb124891-019b-4de8-b842-f0fc92359cfe
+	sourceLineageTag: [dim].[region]
+
+	column libelle_region
+		dataType: string
+		lineageTag: b6638fdd-7590-490b-80bd-dccb49a1b7a4
+		sourceLineageTag: libelle_region
+		summarizeBy: none
+		sourceColumn: libelle_region
+
+		annotation SummarizationSetBy = Automatic
+
+	column code_insee_region
+		dataType: string
+		lineageTag: 369e4788-3987-4f0c-956f-e7648ab901d2
+		sourceLineageTag: code_insee_region
+		summarizeBy: none
+		sourceColumn: code_insee_region
+
+		annotation SummarizationSetBy = Automatic
+
+	column chef_lieu
+		dataType: string
+		lineageTag: 7b9e8b70-f1f2-4915-921c-6045268a05e7
+		sourceLineageTag: chef_lieu
+		summarizeBy: none
+		sourceColumn: chef_lieu
+
+		annotation SummarizationSetBy = Automatic
+
+	column longitude
+		dataType: double
+		lineageTag: c37569fc-58ac-471c-b3b9-0fea0fa2a497
+		sourceLineageTag: longitude
+		summarizeBy: sum
+		sourceColumn: longitude
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column latitude
+		dataType: double
+		lineageTag: 863b69dd-475e-434f-85a0-9fa470a90f52
+		sourceLineageTag: latitude
+		summarizeBy: sum
+		sourceColumn: latitude
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column perimetre_eco2mix
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 4d1571ac-7eb2-4893-86af-205098223ee7
+		sourceLineageTag: perimetre_eco2mix
+		summarizeBy: none
+		sourceColumn: perimetre_eco2mix
+
+		annotation SummarizationSetBy = Automatic
+
+	column contact_email
+		dataType: string
+		isHidden
+		lineageTag: d7e9bb4a-5e68-43e9-b740-d1f19f093307
+		sourceLineageTag: contact_email
+		summarizeBy: none
+		sourceColumn: contact_email
+
+		changedProperty = IsHidden
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Région = entity
+		mode: directLake
+		source
+			entityName: region
+			schemaName: dim
+			expressionSource: 'DirectLake – wh_electricite'
+
+	changedProperty = Name
+

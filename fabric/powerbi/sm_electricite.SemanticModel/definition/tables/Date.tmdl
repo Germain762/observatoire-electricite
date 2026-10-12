@@ -1,0 +1,109 @@
+table Date
+	lineageTag: 7efcbb4b-4676-47de-8e59-5fae48dbefc3
+	sourceLineageTag: [dim].[date]
+	dataCategory: Time
+
+	column date_key
+		dataType: int64
+		formatString: 0
+		lineageTag: 35f8d290-9cac-438f-88dc-ef23d9924778
+		sourceLineageTag: date_key
+		summarizeBy: none
+		sourceColumn: date_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column date
+		dataType: dateTime
+		isKey
+		formatString: General Date
+		lineageTag: 01fe3e6b-452b-4ca6-a11a-1bdccc7130ec
+		sourceLineageTag: date
+		summarizeBy: none
+		sourceColumn: date
+
+		annotation SummarizationSetBy = Automatic
+
+	column annee
+		dataType: int64
+		formatString: 0
+		lineageTag: 085cf2bd-0efa-4aec-982b-507361191a63
+		sourceLineageTag: annee
+		summarizeBy: sum
+		sourceColumn: annee
+
+		annotation SummarizationSetBy = Automatic
+
+	column mois
+		dataType: int64
+		formatString: 0
+		lineageTag: 1469f7ce-5234-448e-98fe-3c4b8e8588a0
+		sourceLineageTag: mois
+		summarizeBy: sum
+		sourceColumn: mois
+
+		annotation SummarizationSetBy = Automatic
+
+	column mois_libelle
+		dataType: string
+		lineageTag: 016657e3-5c59-44df-9300-416bff87e459
+		sourceLineageTag: mois_libelle
+		summarizeBy: none
+		sourceColumn: mois_libelle
+		sortByColumn: mois
+
+		changedProperty = SortByColumn
+
+		annotation SummarizationSetBy = Automatic
+
+	column jour
+		dataType: int64
+		formatString: 0
+		lineageTag: b4467480-40df-410a-8c4d-7bc1dea3ced9
+		sourceLineageTag: jour
+		summarizeBy: sum
+		sourceColumn: jour
+
+		annotation SummarizationSetBy = Automatic
+
+	column jour_semaine
+		dataType: int64
+		formatString: 0
+		lineageTag: 3ce6cd1f-9a3d-4ceb-b324-8372f2f67911
+		sourceLineageTag: jour_semaine
+		summarizeBy: sum
+		sourceColumn: jour_semaine
+
+		annotation SummarizationSetBy = Automatic
+
+	column jour_libelle
+		dataType: string
+		lineageTag: 74efdb5f-0a99-4260-bc1c-65d8c87304e2
+		sourceLineageTag: jour_libelle
+		summarizeBy: none
+		sourceColumn: jour_libelle
+		sortByColumn: jour_semaine
+
+		changedProperty = SortByColumn
+
+		annotation SummarizationSetBy = Automatic
+
+	column est_weekend
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: b539ec9d-178a-493e-a174-66e43c3c240d
+		sourceLineageTag: est_weekend
+		summarizeBy: none
+		sourceColumn: est_weekend
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Date = entity
+		mode: directLake
+		source
+			entityName: date
+			schemaName: dim
+			expressionSource: 'DirectLake – wh_electricite'
+
+	changedProperty = Name
+

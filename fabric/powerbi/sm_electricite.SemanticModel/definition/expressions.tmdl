@@ -1,0 +1,9 @@
+expression 'DirectLake – wh_electricite' =
+		let
+		    Source = AzureStorage.DataLake("https://onelake.dfs.fabric.microsoft.com/ad90f025-9a04-41a2-b271-9b5881e5e6ad/3e6c16e5-c4f9-4bbe-8c31-e11e2be0ef62", [HierarchicalNavigation=true])
+		in
+		    Source
+	lineageTag: d15c699f-dc2a-4da4-9d15-49f429fc7620
+
+	annotation PBI_IncludeFutureArtifacts = False
+

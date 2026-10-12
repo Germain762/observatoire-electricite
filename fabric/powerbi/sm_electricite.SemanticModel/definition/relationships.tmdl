@@ -1,0 +1,20 @@
+relationship 0de0cfa4-8700-0fe8-45b7-e00ec14b19a3
+	fromColumn: Consommation.date_key
+	toColumn: Date.date_key
+
+relationship 3005450c-1f7a-5b5b-aee0-ef43e7fb0ac3
+	fromColumn: Production.date_key
+	toColumn: Date.date_key
+
+relationship 33b6aef7-0c4b-b505-94bc-a7f961285532
+	fromColumn: Production.filiere
+	toColumn: Filière.code_filiere
+
+relationship 853039bb-7f1a-5a8a-0e7e-7522f6626450
+	fromColumn: Production.code_region
+	toColumn: Région.code_insee_region
+
+relationship 3baeb8d7-3b6c-d8c4-2615-6c92e8c85753
+	fromColumn: Consommation.code_region
+	toColumn: Région.code_insee_region
+

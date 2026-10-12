@@ -1,0 +1,89 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.14.0/schema.json",
+  "name": "f5c84f218a25588a84e7",
+  "position": {
+    "x": 9.6285289747399716,
+    "y": 0,
+    "z": 0,
+    "height": 449.33135215453194,
+    "width": 415.63150074294208,
+    "tabOrder": 0
+  },
+  "visual": {
+    "visualType": "lineChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Date"
+                    }
+                  },
+                  "Property": "mois_libelle"
+                }
+              },
+              "queryRef": "Date.mois_libelle",
+              "nativeQueryRef": "mois_libelle",
+              "active": true
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Production"
+                    }
+                  },
+                  "Property": "Heures incomplètes"
+                }
+              },
+              "queryRef": "Production.Heures incomplètes",
+              "nativeQueryRef": "Heures incomplètes"
+            }
+          ]
+        }
+      }
+    },
+    "drillFilterOtherVisuals": true
+  },
+  "filterConfig": {
+    "filters": [
+      {
+        "name": "be98d6822a605c5f4b6c",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "Production"
+              }
+            },
+            "Property": "Heures incomplètes"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "121048a2a2a054f11c05",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "Date"
+              }
+            },
+            "Property": "mois_libelle"
+          }
+        },
+        "type": "Categorical"
+      }
+    ]
+  }
+}

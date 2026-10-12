@@ -187,12 +187,62 @@
         "policy": {
           "timeout": "0.12:00:00",
           "retry": 1,
-          "retryIntervalInSeconds": 30,
+          "retryIntervalInSeconds": 120,
           "secureInput": false,
           "secureOutput": false
         },
         "name": "nb_refresh_sql_endpoints",
         "dependsOn": []
+      },
+      {
+        "type": "PBISemanticModelRefresh",
+        "typeProperties": {
+          "method": "POST",
+          "groupId": "ad90f025-9a04-41a2-b271-9b5881e5e6ad",
+          "datasetId": "1f00487c-6431-4a06-af69-694418c48d42",
+          "commitMode": "Transactional",
+          "objects": [
+            {
+              "table": "Filière"
+            },
+            {
+              "table": "Date"
+            },
+            {
+              "table": "Production"
+            },
+            {
+              "table": "Consommation"
+            },
+            {
+              "table": "Acces_region"
+            },
+            {
+              "table": "Région"
+            }
+          ],
+          "waitOnCompletion": true,
+          "operationType": "SemanticModelRefresh"
+        },
+        "externalReferences": {
+          "connection": "41e41973-edf2-44b8-b08a-375d52fe97ce"
+        },
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 0,
+          "retryIntervalInSeconds": 30,
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "name": "Semantic model refresh1",
+        "dependsOn": [
+          {
+            "activity": "charger fact_conso_meteo_horaire",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ]
       }
     ],
     "parameters": {

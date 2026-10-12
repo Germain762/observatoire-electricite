@@ -1,0 +1,15 @@
+role lecteur_regional
+	modelPermission: read
+
+	tablePermission Région =
+			VAR acces = CALCULATETABLE (
+			        VALUES ( 'Acces_region'[code_region] ),
+			        'Acces_region'[utilisateur] = USERPRINCIPALNAME ()
+			    )
+			RETURN
+			    "*" IN acces || 'Région'[code_insee_region] IN acces
+
+	tablePermission Acces_region = Acces_region[utilisateur] = USERPRINCIPALNAME()
+
+	annotation PBI_Id = 3fb4ea0c8e534c569b47237f3ed054cf
+

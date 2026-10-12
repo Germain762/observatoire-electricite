@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Report",
+    "displayName": "rpt_electricite"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "88931bb8-a9fe-b4b7-45c5-d9b0a5f17ecb"
+  }
+}

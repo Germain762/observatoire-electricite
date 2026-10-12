@@ -1,0 +1,189 @@
+table Production
+	lineageTag: ae7f416d-25de-4bb8-85b2-90b0b4df719f
+	sourceLineageTag: [fact].[production_horaire]
+
+	measure 'Production MWh' = SUM ( 'Production'[mwh] )
+		formatString: #,0
+		displayFolder: Production
+		lineageTag: a7a88be8-63a4-47eb-a2c4-160c8912b3b3
+
+		changedProperty = Name
+
+		changedProperty = DisplayFolder
+
+		changedProperty = FormatString
+
+		changedProperty = FormatStringDefinition
+
+		annotation PBI_FormatHint = {"isCustom":true}
+
+	measure 'Production TWh' = DIVIDE ( [Production MWh], 1e6 )
+		formatString: " #,0.0"
+		displayFolder: Production
+		lineageTag: e1fd6748-f719-47d2-986d-98abb234644f
+
+		changedProperty = Name
+
+		changedProperty = DisplayFolder
+
+		changedProperty = FormatString
+
+		annotation PBI_FormatHint = {"isCustom":true}
+
+	measure 'Part filière' = DIVIDE ( [Production MWh], CALCULATE ( [Production MWh], REMOVEFILTERS ( 'Filière' ) ) )
+		formatString: " 0.0%"
+		displayFolder: Mix
+		lineageTag: 8a572c04-426a-4bb7-8977-cb4abc398fe9
+
+		changedProperty = Name
+
+		changedProperty = DisplayFolder
+
+		changedProperty = FormatString
+
+		annotation PBI_FormatHint = {"isCustom":true}
+
+	measure 'Part bas carbone' =
+			DIVIDE (
+			    CALCULATE ( [Production MWh], 'Filière'[bas_carbone] = TRUE () ),
+			    CALCULATE ( [Production MWh], REMOVEFILTERS ( 'Filière' ) )
+			)
+		formatString: " 0.0%"
+		displayFolder: Mix
+		lineageTag: d297dc21-b352-4e7b-894f-6bef777829b9
+
+		changedProperty = Name
+
+		changedProperty = DisplayFolder
+
+		changedProperty = FormatString
+
+		annotation PBI_FormatHint = {"isCustom":true}
+
+	measure 'Production N-1' = CALCULATE ( [Production MWh], SAMEPERIODLASTYEAR ( 'Date'[date] ) )
+		formatString: " #,0"
+		displayFolder: Evolution
+		lineageTag: cb6d8d9b-e749-4a23-a4d4-c5100478a95c
+
+		changedProperty = Name
+
+		changedProperty = DisplayFolder
+
+		changedProperty = FormatString
+
+		annotation PBI_FormatHint = {"isCustom":true}
+
+	measure 'Évolution N/N-1' = DIVIDE ( [Production MWh] - [Production N-1], [Production N-1] )
+		formatString: " +0.0 %;-0.0 %"
+		displayFolder: Evolution
+		lineageTag: 777dbfb5-5d05-469a-ada9-e4bf1acb84b2
+
+		changedProperty = Name
+
+		changedProperty = DisplayFolder
+
+		changedProperty = FormatString
+
+		annotation PBI_FormatHint = {"isCustom":true}
+
+	measure 'Heures incomplètes' = CALCULATE ( COUNTROWS ( 'Production' ), 'Production'[nb_pas] < 2 )
+		formatString: #,0
+		displayFolder: Qualité
+		lineageTag: 1f3ffc67-3140-4b55-a025-33a9ebb159d3
+
+		changedProperty = Name
+
+		changedProperty = DisplayFolder
+
+		changedProperty = FormatString
+
+		annotation PBI_FormatHint = {"isCustom":true}
+
+	column date_key
+		dataType: int64
+		formatString: 0
+		lineageTag: b3d29c62-077f-446e-ab7d-2c4f4d3012c8
+		sourceLineageTag: date_key
+		summarizeBy: none
+		sourceColumn: date_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column heure_locale
+		dataType: int64
+		formatString: 0
+		lineageTag: ac45b9c0-0560-46e9-a5ee-f7aa1f167e5a
+		sourceLineageTag: heure_locale
+		summarizeBy: sum
+		sourceColumn: heure_locale
+
+		annotation SummarizationSetBy = Automatic
+
+	column heure_utc
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 1623b746-08fb-4bd5-9721-f4261462f325
+		sourceLineageTag: heure_utc
+		summarizeBy: none
+		sourceColumn: heure_utc
+
+		annotation SummarizationSetBy = Automatic
+
+	column code_region
+		dataType: string
+		lineageTag: 676a6273-f0d1-4084-aa89-281ac40fb226
+		sourceLineageTag: code_region
+		summarizeBy: none
+		sourceColumn: code_region
+
+		annotation SummarizationSetBy = Automatic
+
+	column filiere
+		dataType: string
+		lineageTag: e67adfbe-be83-4063-8582-b17fc371f95f
+		sourceLineageTag: filiere
+		summarizeBy: none
+		sourceColumn: filiere
+
+		annotation SummarizationSetBy = Automatic
+
+	column mwh
+		dataType: double
+		lineageTag: 0f554ce6-f467-4555-858f-944248404225
+		sourceLineageTag: mwh
+		summarizeBy: sum
+		sourceColumn: mwh
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column nb_pas
+		dataType: int64
+		formatString: 0
+		lineageTag: 0b89dba2-af43-4c3b-8810-255ae095569c
+		sourceLineageTag: nb_pas
+		summarizeBy: sum
+		sourceColumn: nb_pas
+
+		annotation SummarizationSetBy = Automatic
+
+	column annee
+		dataType: int64
+		formatString: 0
+		lineageTag: 3f2c51c6-42cd-4eab-8d56-62aecf9ba5e5
+		sourceLineageTag: annee
+		summarizeBy: sum
+		sourceColumn: annee
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Production = entity
+		mode: directLake
+		source
+			entityName: production_horaire
+			schemaName: fact
+			expressionSource: 'DirectLake – wh_electricite'
+
+	changedProperty = Name
+

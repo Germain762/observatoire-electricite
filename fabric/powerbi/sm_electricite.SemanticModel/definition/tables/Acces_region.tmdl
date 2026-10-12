@@ -1,0 +1,40 @@
+table Acces_region
+	isHidden
+	lineageTag: 7c4d5ed2-3a3f-4f37-af60-8aa5667945f2
+	sourceLineageTag: [securite].[acces_region]
+
+	column utilisateur
+		dataType: string
+		isHidden
+		lineageTag: 78407693-73e7-430b-bd51-bbc7890bf862
+		sourceLineageTag: utilisateur
+		summarizeBy: none
+		sourceColumn: utilisateur
+
+		changedProperty = IsHidden
+
+		annotation SummarizationSetBy = Automatic
+
+	column code_region
+		dataType: string
+		isHidden
+		lineageTag: 605b2e4a-2228-4bc3-90ed-800049fc7a69
+		sourceLineageTag: code_region
+		summarizeBy: none
+		sourceColumn: code_region
+
+		changedProperty = IsHidden
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Acces_region = entity
+		mode: directLake
+		source
+			entityName: acces_region
+			schemaName: securite
+			expressionSource: 'DirectLake – wh_electricite'
+
+	changedProperty = IsHidden
+
+	changedProperty = Name
+
