@@ -41,8 +41,6 @@ ws = notebookutils.runtime.context["currentWorkspaceName"]
 BRONZE = f"abfss://{ws}@onelake.dfs.fabric.microsoft.com/lh_bronze.Lakehouse/Files"
 SEUIL_SUPPRESSIONS = 500
 
-cible = DeltaTable.forName(spark, "eco2mix_regional")
-
 # METADATA ********************
 
 # META {
@@ -98,23 +96,41 @@ n_src, n_silver = src.count(), silver.count()
 n_suppr = n_src - n_silver
 print(f"{n_src} lignes lues, {n_suppr} supprimées par dédoublonnage")
 
-(cible.alias("t")
-   .merge(silver.alias("s"), "t.code_insee_region = s.code_insee_region AND t.ts_utc = s.ts_utc")
-   .whenMatchedUpdateAll(condition="t.row_hash <> s.row_hash")
-   .whenNotMatchedInsertAll()
-   .whenNotMatchedBySourceDelete(condition=f"t.annee >= {annee_debut}")
-   .execute())
+if not spark.catalog.tableExists("eco2mix_regional"):
+    silver.write.format("delta").saveAsTable("eco2mix_regional")
+else:
+    cible = DeltaTable.forName(spark, "eco2mix_regional")
 
-# Lignes du silver absentes de la source rechargée
-fantomes = (cible.toDF().filter(F.col("annee") >= annee_debut)
-              .join(silver.select("code_insee_region", "ts_utc"), ["code_insee_region", "ts_utc"], "left_anti"))
-n_suppr = fantomes.count()
+    # 1. Mesurer AVANT de modifier quoi que ce soit
+    fantomes = (cible.toDF().filter(F.col("annee") >= annee_debut)
+                  .join(silver.select("code_insee_region", "ts_utc"),
+                        ["code_insee_region", "ts_utc"], "left_anti"))
+    n_fantomes = fantomes.count()
+    if n_fantomes > SEUIL_SUPPRESSIONS:
+        raise ValueError(f"{n_fantomes} lignes du silver absentes de la source : "
+                         "suppression refusée (export incomplet ?)")
 
-if n_suppr > SEUIL_SUPPRESSIONS:
-    raise ValueError(f"{n_suppr} lignes du silver absentes de la source : suppression refusée (export incomplet ?)")
-if n_suppr:
-    log_execution("eco2mix_regional", "avertissement", n_suppr,
-                  f"{n_suppr} ligne(s) retirée(s) par la source et supprimée(s) du silver")
+    # 2.MERGE
+    (cible.alias("t")
+       .merge(silver.alias("s"), "t.code_insee_region = s.code_insee_region AND t.ts_utc = s.ts_utc")
+       .whenMatchedUpdateAll(condition="t.row_hash <> s.row_hash")
+       .whenNotMatchedInsertAll()
+       .whenNotMatchedBySourceDelete(condition=f"t.annee >= {annee_debut}")
+       .execute())
+
+    # 3. Journaliser une fois l'opération réussie
+    if n_fantomes:
+        log_execution("eco2mix_regional", "avertissement", n_fantomes,
+                      f"{n_fantomes} ligne(s) retirée(s) par la source et supprimée(s) du silver")
+
+# METADATA ********************
+
+# META {
+# META   "language": "python",
+# META   "language_group": "synapse_pyspark"
+# META }
+
+# CELL ********************
 
 if not spark.catalog.tableExists("eco2mix_regional"):
     silver.write.format("delta").saveAsTable("eco2mix_regional")
