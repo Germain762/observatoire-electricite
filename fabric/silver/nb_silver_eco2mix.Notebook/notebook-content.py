@@ -34,8 +34,14 @@ run_id = "manuel"
 
 # CELL ********************
 
+from pyspark.sql  import functions as F, Window
+from delta.tables import DeltaTable
+import json
 ws = notebookutils.runtime.context["currentWorkspaceName"]
 BRONZE = f"abfss://{ws}@onelake.dfs.fabric.microsoft.com/lh_bronze.Lakehouse/Files"
+SEUIL_SUPPRESSIONS = 500
+
+cible = DeltaTable.forName(spark, "eco2mix_regional")
 
 # METADATA ********************
 
@@ -56,10 +62,6 @@ BRONZE = f"abfss://{ws}@onelake.dfs.fabric.microsoft.com/lh_bronze.Lakehouse/Fil
 # META }
 
 # CELL ********************
-
-from pyspark.sql  import functions as F, Window
-from delta.tables import DeltaTable
-import json
 
 spark.conf.set("spark.sql.session.timeZone", "UTC")
 mesures = ["consommation", "thermique", "nucleaire", "eolien", "solaire", "hydraulique", "pompage", "bioenergies", "ech_physiques", 
@@ -95,6 +97,24 @@ silver = silver.cache()          # évite de recalculer toute la chaîne pour ch
 n_src, n_silver = src.count(), silver.count()
 n_suppr = n_src - n_silver
 print(f"{n_src} lignes lues, {n_suppr} supprimées par dédoublonnage")
+
+(cible.alias("t")
+   .merge(silver.alias("s"), "t.code_insee_region = s.code_insee_region AND t.ts_utc = s.ts_utc")
+   .whenMatchedUpdateAll(condition="t.row_hash <> s.row_hash")
+   .whenNotMatchedInsertAll()
+   .whenNotMatchedBySourceDelete(condition=f"t.annee >= {annee_debut}")
+   .execute())
+
+# Lignes du silver absentes de la source rechargée
+fantomes = (cible.toDF().filter(F.col("annee") >= annee_debut)
+              .join(silver.select("code_insee_region", "ts_utc"), ["code_insee_region", "ts_utc"], "left_anti"))
+n_suppr = fantomes.count()
+
+if n_suppr > SEUIL_SUPPRESSIONS:
+    raise ValueError(f"{n_suppr} lignes du silver absentes de la source : suppression refusée (export incomplet ?)")
+if n_suppr:
+    log_execution("eco2mix_regional", "avertissement", n_suppr,
+                  f"{n_suppr} ligne(s) retirée(s) par la source et supprimée(s) du silver")
 
 if not spark.catalog.tableExists("eco2mix_regional"):
     silver.write.format("delta").saveAsTable("eco2mix_regional")

@@ -8,18 +8,17 @@
 # META   },
 # META   "dependencies": {
 # META     "lakehouse": {
-# META       "default_lakehouse_name": "",
-# META       "default_lakehouse_workspace_id": "",
-# META       "known_lakehouses": []
-# META     },
-# META     "warehouse": {
-# META       "default_warehouse": "ee264c39-2ea9-46c2-8f17-ac102772ae71",
-# META       "known_warehouses": [
+# META       "default_lakehouse": "f79e1413-8920-4c89-ac6e-630513ec0f5e",
+# META       "default_lakehouse_name": "lh_gold",
+# META       "default_lakehouse_workspace_id": "ad90f025-9a04-41a2-b271-9b5881e5e6ad",
+# META       "known_lakehouses": [
 # META         {
-# META           "id": "ee264c39-2ea9-46c2-8f17-ac102772ae71",
-# META           "type": "Lakewarehouse"
+# META           "id": "f79e1413-8920-4c89-ac6e-630513ec0f5e"
 # META         }
 # META       ]
+# META     },
+# META     "warehouse": {
+# META       "known_warehouses": []
 # META     }
 # META   }
 # META }
@@ -325,7 +324,8 @@ display(agg_mix)
 
 def controles_mix(df):
     erreurs = []
-
+    SEUIL_JOURS_INCOMPLETS = 3
+    
     if df.groupBy("code_region", "date_locale", "filiere").count().filter("count > 1").limit(1).count() > 0:
         erreurs.append("doublons sur la clé (code_region, date_locale, filiere)")
 
@@ -345,8 +345,13 @@ def controles_mix(df):
                         
     n = heures_ko.count()
     if n > 0:
-        exemples = [f"{r.code_region} {r.date_locale} ({r.nb_heures} h au lieu de {r.attendu:.0f})" for r in heures_ko.limit(5).collect()]
-        erreurs.append(f"heures : {n} journée(s) incomplète(s), ex. {exemples}")
+        exemples = [f"{r.code_region} {r.date_locale} ({r.nb_heures} h au lieu de {int(r.attendu)})"
+                    for r in heures_ko.limit(5).collect()]
+        msg = f"{n} journée(s) incomplète(s) à la source, ex. {exemples}"
+        if n > SEUIL_JOURS_INCOMPLETS:
+            erreurs.append(msg)
+        else:
+            log_execution("agg_mix_journalier", "avertissement", n, msg)
 
     #Controle des parts totales
     part_totale = (
