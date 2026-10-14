@@ -42,8 +42,8 @@ in
   #"Colonne personnalisée ajoutée";
 shared Fusionner_DataDestination = let
   Pattern = Lakehouse.Contents([CreateNavigationProperties = false, EnableFolding = false, HierarchicalNavigation = true, EnableVorder = true, OutputMetadataRefresh = true]),
-  Navigation_1 = Pattern{[workspaceId = "ad90f025-9a04-41a2-b271-9b5881e5e6ad"]}[Data],
-  Navigation_2 = Navigation_1{[lakehouseId = "5cfb5a02-b6fb-48e7-8e22-3cb56bbb5daf"]}[Data],
+  Navigation_1 = Pattern{[workspaceId = Variable.Value("$(/**/vl_electricite/workspace_id)")]}[Data],
+  Navigation_2 = Navigation_1{[lakehouseId = Variable.Value("$(/**/vl_electricite/lh_bronze_id)")]}[Data],
   Navigation_3 = Navigation_2{[Id = "dbo", ItemKind = "Schema"]}[Data],
   TableNavigation = Navigation_3{[Id = "ref_regions", ItemKind = "Table"]}?[Data]?
 in
