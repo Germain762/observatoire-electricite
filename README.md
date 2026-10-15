@@ -55,6 +55,8 @@ Le streaming suit la même logique en trois couches dans l'Eventhouse : table br
 | Élément | Choix |
 |---|---|
 | Workspaces | `elec-dev` (développement), `elec-test` (cible du deployment pipeline) |
+| Déploiement | Deployment pipeline `dp_electricite` (Développement → Test) |
+| Paramétrage par environnement | Variable library `vl_electricite`, jeux de valeurs `jv_dev` et `jv_test` |
 | Git | Azure DevOps ; `elec-dev` synchronisé sur la branche `dev` ; `main` n'avance que par pull request depuis `dev` |
 | Dossier Git | `/fabric` pour les items Fabric, la racine reste libre pour la doc et le code hors Fabric |
 | Lakehouses | `lh_bronze`, `lh_silver`, `lh_gold`, `lh_admin` |
@@ -69,6 +71,7 @@ observatoire-electricite/
 ├─ README.md
 ├─ fabric/      ← items Fabric synchronisés
 └─ docs/
+   └─ audit_deploiement.md   ← audit de portabilité dev → test
 ```
 
 ### Conventions de nommage
@@ -87,6 +90,8 @@ observatoire-electricite/
 | `act_` | Activator |
 | `sm_` | Modèle sémantique |
 | `rpt_` | Rapport Power BI |
+| `vl_` | Variable library |
+| `dp_` | Deployment pipeline |
 | `cnx_` | Connexion |
 
 Colonnes temporelles : le fuseau est toujours explicite dans le nom (`ts_utc`, `ts_paris`, `heure_utc`, `heure_paris`, `date_locale`).
@@ -98,7 +103,7 @@ Colonnes temporelles : le fuseau est toujours explicite dans le nom (`ts_utc`, `
 ```
 pl_main  (run_id = @pipeline().RunId, annee_debut : 0 = automatique)
 ├─ Set variable annee_debut_effective   (0 → année courante - 1)
-├─ pl_orchestration_bronze
+├─ pl_orchestration_bronze       (run_id, annee_debut transmis)
 │   ├─ df_ref_regions
 │   ├─ pl_ingest_eco2mix ┐ en parallèle
 │   ├─ pl_ingest_meteo   ┘
@@ -109,6 +114,7 @@ pl_main  (run_id = @pipeline().RunId, annee_debut : 0 = automatique)
 │   └─ nb_gold
 └─ pl_orchestration_warehouse    (run_id, annee_debut transmis)
     ├─ nb_refresh_sql_endpoints   (synchronisation forcée des SQL endpoints de lh_gold et lh_admin)
+    ├─ etl.initialiser_environnement   (référentiels statiques, accès ETL, droits ; idempotente)
     ├─ etl.charger_dim_date, etl.charger_dim_region
     ├─ etl.charger_fact_production, etl.charger_fact_conso_meteo
     └─ Actualisation de sm_electricite (reframing explicite)
@@ -152,7 +158,9 @@ pl_main  (run_id = @pipeline().RunId, annee_debut : 0 = automatique)
 - **Dédoublonnage déterministe** : `row_number` sur (région, `date_heure`), en gardant d'abord la ligne dont le libellé `heure` correspond à l'heure locale recalculée depuis `date_heure`, puis le définitif avant le consolidé.
 - **Comptage avant / après dédoublonnage** journalisé. Valeur attendue : 24 lignes supprimées par mois de mars présent dans la plage.
 - **Nullification du détail éolien avant 2024** (voir qualité des données).
-- **`MERGE` idempotent** avec `row_hash` (SHA-256) : seules les lignes réellement modifiées sont mises à jour. Le hash remplace les nulls par une sentinelle avant concaténation, car `concat_ws` ignore les nulls.
+- **`MERGE` de synchronisation de la tranche** avec `row_hash` (SHA-256) : seules les lignes réellement modifiées sont mises à jour. Le hash remplace les nulls par une sentinelle avant concaténation, car `concat_ws` ignore les nulls.
+- **Propagation des suppressions** : `whenNotMatchedBySourceDelete(condition = "t.annee >= annee_debut")`. Une ligne retirée par RTE disparaît du silver ; la condition limite la suppression à la tranche rechargée (sans elle, une exécution avec `annee_debut = 2025` supprimerait 2021-2024).
+- **Garde-fou** : les lignes à supprimer sont comptées **avant** le `MERGE` ; au-delà de 500, l'exécution échoue (export probablement incomplet) ; sinon, elles sont journalisées en avertissement après le `MERGE`. Un seul `MERGE` par exécution.
 - **Fidélité à la source** : une ligne publiée vide reste vide en silver ; si RTE la complète, le `row_hash` change et le `MERGE` la met à jour automatiquement.
 - **Pas de partitionnement** : environ 1,2 million de lignes ; partitionner créerait des petits fichiers sans gain.
 - **Chemins OneLake dynamiques** : construits depuis `notebookutils.runtime.context["currentWorkspaceName"]`, pour que le notebook fonctionne sans modification dans `elec-test`.
@@ -219,6 +227,8 @@ pl_main  (run_id = @pipeline().RunId, annee_debut : 0 = automatique)
 
 | Table | Contrôle | Niveau |
 |---|---|---|
+| `eco2mix_regional` (silver) | Lignes absentes de la source rechargée : au-delà de 500 | Bloquant |
+| | Lignes absentes de la source rechargée : jusqu'à 500 (supprimées) | Avertissement |
 | `fact_production_horaire` | `FILIERES` ne contient aucune colonne interdite | Bloquant |
 | | Clé unique (région, heure, filière) | Bloquant |
 | | Conservation : Σ MWh gold = Σ filières silver × 0,5 sur la même tranche | Bloquant |
@@ -228,9 +238,12 @@ pl_main  (run_id = @pipeline().RunId, annee_debut : 0 = automatique)
 | | 0 null météo ; nombre de régions = régions `perimetre_eco2mix` | Bloquant |
 | | Heures incomplètes : même règle à deux niveaux que la production | Bloquant / Avertissement |
 | `agg_mix_journalier` | Clé unique ; parts sommant à 1 (tolérance 1e-9) ; conservation par jour local | Bloquant |
-| | `nb_heures` = heures civiles du jour (23 / 24 / 25), plafonnées à 24, premier jour de la plage exclu | Bloquant |
+| | Journées dont `nb_heures` ≠ heures civiles du jour (23 / 24 / 25, plafonnées à 24, premier jour de la plage exclu) : au-delà de 3 couples (région, jour) | Bloquant |
+| | Mêmes journées incomplètes : jusqu'à 3 couples | Avertissement |
 
 Le contrôle des filières interdites vérifie **la liste elle-même** : c'est le seul qui aurait détecté le double comptage de l'éolien.
+
+Le contrôle journalier couvre un angle mort du contrôle `nb_pas` : une heure entièrement vide ou absente du silver disparaît de `fact_production_horaire` (filtre `mw IS NOT NULL`) au lieu d'y apparaître avec `nb_pas = 1` ; seul le décompte des heures par jour local la voit.
 
 ### Fonctions partagées (`nb_utils`, inclus via `%run nb_utils`)
 
@@ -246,7 +259,7 @@ Le contrôle des filières interdites vérifie **la liste elle-même** : c'est l
 
 ### Journal des exécutions : `lh_admin.dbo.log_execution`
 
-Colonnes : `run_id`, `notebook`, `table_cible`, `statut` (`succes`, `echec`, `avertissement`), `lignes` (`numOutputRows` lu dans l'historique Delta), `message`, `horodatage_utc`.
+Colonnes : `run_id`, `environnement` (`dev` / `test`, lu dans `vl_electricite`), `notebook`, `table_cible`, `statut` (`succes`, `echec`, `avertissement`), `lignes` (`numOutputRows` lu dans l'historique Delta), `message`, `horodatage_utc`.
 
 Le journal sert aussi de **référence externe** pour le chargement du Warehouse (voir plus bas).
 
@@ -326,6 +339,7 @@ Notebook **Python** (sans Spark), planifié toutes les 15 minutes dans Fabric.
 
 ### Chargement des faits
 
+- **Initialisation de l'environnement** : `etl.initialiser_environnement`, idempotente, remplit ce que le projet SQL versionne sans contenu — les valeurs de `dim.filiere`, la ligne `'*'` de `securite.acces_region` pour l'identité de chargement (indispensable avant tout `DELETE` filtré par la RLS) et les `GRANT` du rôle `lecteur_regional`. Un déploiement copie les tables et le rôle, pas leurs lignes ni leurs droits.
 - **Lecture cross-database** du gold via le SQL analytics endpoint (`lh_gold.dbo.fact_production_horaire`).
 - **Transposition du `replaceWhere`** : `DELETE` de la tranche `annee >= @annee_debut` puis `INSERT ... SELECT`, dans une **transaction**.
 - **`TRY / CATCH`** : `ROLLBACK` puis `THROW` pour relancer l'erreur, afin que le pipeline voie l'échec (même rôle que le `raise` de `publier`). Testé avec un `THROW` forcé : la table reste intacte.
@@ -361,6 +375,7 @@ Notebook **Python** (sans Spark), planifié toutes les 15 minutes dans Fabric.
 | Passage à l'heure d'hiver (octobre) : 1 heure manquante par région et par an | Grille fixe de 48 créneaux pour une journée de 25 h | Perte à la source documentée, non imputée |
 | Ligne vide le 31/12/2025 à 23:00 UTC (minuit à Paris le 01/01/2026), 12 régions | Artefact de publication à la jonction définitif 2025 / consolidé 2026 | Conservée en silver ; heure gold à `nb_pas = 1` ; avertissement journalisé |
 | Temps réel : quarts d'heure annoncés vides puis remplis, valeurs révisées | Publication horaire, données provisoires | Fenêtre glissante + `arg_max` ; quarts d'heure incomplets exclus des calculs nationaux |
+| 6 demi-heures du 16/02/2025 (région 84) retirées de la publication | Le bronze de dev et celui de test en contiennent 42 ; le silver de dev en gardait 48, car le `MERGE` ne supprimait jamais | Suppression des lignes absentes de la source dans la tranche rechargée (plafond 500) ; journée à 21 h signalée en avertissement |
 
 Leçon générale : **une ligne présente n'est pas une donnée présente** ; un null peut avoir un sens métier, et un zéro peut mentir.
 
@@ -410,6 +425,9 @@ Légèrement inférieures aux bilans nationaux de RTE (écart correspondant à l
 | RLS | Accès restreint à `'28'` → seule la Normandie visible ; accès `'*'` rétabli ensuite |
 | `nb_refresh_sql_endpoints` | Statut `Success` pour toutes les tables de `lh_gold` et `lh_admin` |
 | Relance isolée de `pl_orchestration_warehouse` | Avec `annee_debut` et le `run_id` d'une exécution passée, le chargement passe sans relancer bronze, silver ni gold |
+| `MERGE` silver | `DESCRIBE HISTORY eco2mix_regional` : une seule opération `MERGE` par exécution |
+| Déploiement dev → test | Un correctif fait en dev arrive dans `elec-test` par `dp_electricite`, sans retouche manuelle ; `pl_main` au vert dans les deux workspaces |
+| Isolation des environnements | Après actualisation de `df_ref_regions` dans `elec-test`, l'historique de `ref_regions` de dev ne montre aucune écriture ; `log_execution` de test porte `environnement = test` |
 | Mode du modèle sémantique | TMDL : connecteur « Azure Data Lake Storage » (Direct Lake on OneLake) |
 | RLS du modèle | « Tester en tant que rôle » avec l'utilisateur `'28'` → seule la Normandie, sur toutes les pages |
 | Reframing | `pl_main` se termine par l'actualisation de `sm_electricite`, visible dans l'historique d'actualisation |
@@ -426,7 +444,9 @@ Légèrement inférieures aux bilans nationaux de RTE (écart correspondant à l
 | 07/10/2026 | `fact_production_horaire` bloquée : « heures incomplètes » | Ligne vide publiée par RTE à la jonction définitif 2025 / consolidé 2026 | Contrôle `nb_pas` | Règle à deux niveaux (avertissement / bloquant) |
 | 10/10/2026 | `etl.charger_fact_production` en échec : « Aucune écriture gold journalisée pour ce run » | SQL endpoint de `lh_admin` / `lh_gold` pas encore synchronisé à 05:00, malgré 2 retries de 120 s | Contrôle contre `log_execution` (transaction annulée, Warehouse intact) | `run_id` vérifiés identiques sur toute la chaîne ; rattrapage par relance de `pl_orchestration_warehouse` seul avec le `run_id` du matin ; ajout de `nb_refresh_sql_endpoints` |
 
-Sans le contrôle contre le journal, l'incident du 10/10 aurait rechargé silencieusement les données de la veille avec un pipeline au vert.
+| 13/10/2026 | Premier `pl_main` dans `elec-test` : `agg_mix_journalier` bloque (région 84, 16/02/2025, 21 h au lieu de 24) | 6 demi-heures retirées par RTE ; le silver de dev les conservait (`MERGE` sans suppression), le test chargé à neuf ne les avait plus | Contrôle journalier de `agg_mix_journalier` ; comparaison des bronzes dev / test | Suppression des lignes absentes de la source dans la tranche, avec garde-fou ; contrôle journalier à deux niveaux ; correctif déployé dev → test par `dp_electricite` |
+
+Sans le contrôle contre le journal, l'incident du 10/10 aurait rechargé silencieusement les données de la veille avec un pipeline au vert. L'incident du 13/10 n'aurait jamais été visible en dev seul : c'est le chargement à neuf d'un second environnement qui a révélé des lignes fantômes accumulées depuis le début du projet.
 
 ---
 
@@ -498,6 +518,63 @@ Le modèle (TMDL) et le rapport (PBIR) sont versionnés dans Git comme les autre
 
 ---
 
+## Déploiement et environnements
+
+### Principe
+
+`elec-test` est alimenté par le deployment pipeline `dp_electricite` depuis `elec-dev`. Un déploiement copie les **définitions** des éléments, jamais les données, les permissions, les membres des rôles d'un modèle sémantique ni les identifiants de connexion. `elec-test` a donc été chargé à neuf par son propre `pl_main` (`annee_debut = 2025`).
+
+L'audit de portabilité qui a précédé le premier déploiement est dans [`docs/audit_deploiement.md`](docs/audit_deploiement.md).
+
+### Ce qui est portable par construction
+
+- **Références relatives** : dans les définitions versionnées, Fabric désigne les éléments du même workspace par leur ID **logique** et un `workspaceId` à zéro (« workspace courant ») ; pipelines, activités Notebook, Copy, Eventstream et Queryset se résolvent ainsi dans l'environnement de destination.
+- **Références par nom** : `lh_silver.dbo…`, `lh_admin.dbo.log_execution`, requêtes cross-database du Warehouse — toutes relatives au workspace d'exécution.
+- **Notebooks** : reconnexion automatique au lakehouse par défaut du workspace de destination ; chemins OneLake construits depuis le nom du workspace courant.
+
+### Variable library `vl_electricite`
+
+| Variable | Consommateur | Rôle |
+|---|---|---|
+| `environnement` | `nb_utils` (`notebookutils.variableLibrary`) | Colonne `environnement` de `log_execution` |
+| `workspace_id`, `lh_bronze_id` | `df_ref_regions` (`Variable.Value` dans `mashup.pq`) | Destination du Dataflow dans le bon `lh_bronze` |
+| `workspace_id`, `sm_electricite_id` | `pl_orchestration_warehouse` (`@pipeline().libraryVariables`) | Actualisation du bon modèle sémantique |
+| `alertes_actives`, `email_alertes` | — | Prévues pour les alertes ; désactivées en test |
+
+- Jeux `jv_dev` et `jv_test`, le jeu actif étant défini par étape du deployment pipeline.
+- `Variable.Value` **sans valeur par défaut** dans le Dataflow : une valeur par défaut serait forcément un ID de dev, qui ferait écrire en silence dans le mauvais workspace ; sans défaut, l'actualisation échoue bruyamment.
+- La destination d'un Dataflow ne se modifie pas dans l'interface : `mashup.pq` est édité dans Git, puis « Tout mettre à jour » dans le workspace.
+
+### Règles de déploiement
+
+- `sm_electricite` : **règle de source de données** vers `wh_electricite` de test. Un modèle Direct Lake ne se reconnecte pas tout seul au déploiement : sans règle, le modèle de test lirait le Warehouse de dev.
+
+### Étapes manuelles après un premier déploiement
+
+1. Désactiver dans `elec-test` les planifications de `pl_main` et de `nb_producer_eco2mix_tr` (elles sont versionnées avec `enabled = true`), ainsi que l'Activator.
+2. Renseigner le jeu `jv_test` avec les ID des éléments de test, l'activer pour l'étape Test, puis redéployer.
+3. Exécuter `etl.initialiser_environnement` (ou laisser `pl_orchestration_warehouse` le faire) avant tout chargement.
+4. Reconfigurer `sm_electricite` : membres du rôle `lecteur_regional`, connexion à identité fixe.
+5. Exclure du déploiement l'élément de workspace monitoring, propre à chaque workspace.
+
+### Enseignements
+
+- **Toute modification manuelle dans une étape aval est écrasée au déploiement suivant.** La destination du Dataflow, corrigée à la main dans `elec-test`, serait repartie vers le bronze de dev au déploiement suivant ; seule la variable library rend la correction durable.
+- **Un second environnement chargé à neuf est un test en soi** : il a révélé les lignes fantômes du silver de dev (incident du 13/10).
+- **Ce qui est versionné n'est pas ce qui est nécessaire** : le projet SQL versionne les tables et le rôle, pas les lignes de référence ni les `GRANT` — d'où la procédure d'initialisation idempotente.
+
+### Les couches de sécurité du projet
+
+| Couche | Ce qu'elle contrôle | Qui y est soumis | Constat dans le projet |
+|---|---|---|---|
+| Rôles du workspace | Accès aux éléments et au contenu du workspace | Tous les utilisateurs du workspace | Administrateur, membre et contributeur ont un accès élevé ; les autres couches s'appliquent surtout aux lecteurs |
+| Permissions d'élément | Partage d'un élément précis (lecture, données, génération) | Utilisateurs hors rôles du workspace | — |
+| OneLake security | Rôles de lecture sur un lakehouse, avec RLS / CLS par table ; refus par défaut | Lecteurs (les rôles par défaut ne s'appliquent qu'aux Lecteurs) | Exercice de configuration à réaliser |
+| Sécurité SQL du Warehouse | RLS (`politique_region`), CLS (`GRANT` par colonne), masquage dynamique | Requêtes SQL sur le Warehouse | La RLS s'applique **aussi à l'administrateur** du workspace (vérifié) ; filtre aussi les `DELETE` de l'ETL |
+| RLS du modèle sémantique | Rôle DAX `lecteur_regional` | **Uniquement les lecteurs** du modèle | Testée avec « Tester en tant que rôle » ; ignore la sécurité SQL en Direct Lake on OneLake |
+
+---
+
 ## Maintenance des tables (prévu)
 
 - Pas d'`OPTIMIZE` dans les notebooks de chargement ; prévu : un `nb_maintenance` planifié (`OPTIMIZE` puis `VACUUM`) et l'*optimize write* sur les tables gold.
@@ -515,7 +592,7 @@ Le modèle (TMDL) et le rapport (PBIR) sont versionnés dans Git comme les autre
 | 3 | Real-Time Intelligence : producteur, Eventstream, Eventhouse / KQL, Real-Time Dashboard, Activator | ✅ |
 | 4 | Warehouse : modèle en étoile, procédures transactionnelles, contrôles, synchronisation forcée des SQL endpoints, CLS / DDM / RLS | ✅ |
 | 5 | Power BI : modèle sémantique Direct Lake on OneLake, mesures, RLS du modèle, reframing explicite, rapport | ✅ |
-| 6 | Deployment pipeline dev → test, variable libraries, OneLake security, monitoring | ⏳ |
+| 6 | Deployment pipeline dev → test, variable library, audit de portabilité, initialisation d'environnement ; reste : monitoring, OneLake security | 🔄 |
 
 ### Bonus non réalisés
 
@@ -530,7 +607,7 @@ Le modèle (TMDL) et le rapport (PBIR) sont versionnés dans Git comme les autre
 
 ## Points d'attention
 
-- Les **connexions** Fabric ne sont pas versionnées dans Git (référencées par ID) : à recréer ou paramétrer par environnement (étape 6).
+- Les **connexions** Fabric ne sont pas versionnées dans Git (référencées par ID). Celles des API publiques (`cnx_odre`, `cnx_openmeteo`) sont partagées par les deux workspaces ; les références à des éléments par ID physique passent par `vl_electricite` ou une règle de déploiement.
 - Git ne versionne que les **définitions** des items, pas les données. Les sources batch étant en open data, tout est reconstructible ; les valeurs temps réel archivées dans l'Eventhouse, elles, ne le sont plus après la purge de RTE.
 - Les planifications (`pl_main`, producteur) ne doivent être actives que dans un seul workspace.
 - Projet réalisé sur une capacité **trial** Fabric.
