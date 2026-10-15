@@ -96,6 +96,7 @@ n_src, n_silver = src.count(), silver.count()
 n_suppr = n_src - n_silver
 print(f"{n_src} lignes lues, {n_suppr} supprimées par dédoublonnage")
 
+n_fantomes = 0
 if not spark.catalog.tableExists("eco2mix_regional"):
     silver.write.format("delta").saveAsTable("eco2mix_regional")
 else:
@@ -132,17 +133,11 @@ else:
 
 # CELL ********************
 
-if not spark.catalog.tableExists("eco2mix_regional"):
-    silver.write.format("delta").saveAsTable("eco2mix_regional")
-else:
-    (DeltaTable.forName(spark, "eco2mix_regional").alias("t")
-       .merge(silver.alias("s"),
-              "t.code_insee_region = s.code_insee_region AND t.ts_utc = s.ts_utc")
-       .whenMatchedUpdateAll(condition="t.row_hash <> s.row_hash")
-       .whenNotMatchedInsertAll()
-       .execute())
-
-notebookutils.notebook.exit(json.dumps({"lues": n_src, "supprimees": n_suppr}))
+notebookutils.notebook.exit(json.dumps({
+    "lues": n_src, 
+    "doublons_supprimes": n_suppr,
+    "fantomes_supprimes": n_fantomes if spark.catalog.tableExists("eco2mix_regional") else 0
+}))
 
 # METADATA ********************
 
