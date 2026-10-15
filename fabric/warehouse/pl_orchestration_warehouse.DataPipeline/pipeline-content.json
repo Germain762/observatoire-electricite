@@ -28,7 +28,7 @@
         "name": "charger_dim_date",
         "dependsOn": [
           {
-            "activity": "nb_refresh_sql_endpoints",
+            "activity": "initialiser_environnement",
             "dependencyConditions": [
               "Succeeded"
             ]
@@ -244,6 +244,40 @@
         "dependsOn": [
           {
             "activity": "charger fact_conso_meteo_horaire",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "SqlServerStoredProcedure",
+        "typeProperties": {
+          "storedProcedureName": "[etl].[initialiser_environnement]"
+        },
+        "linkedService": {
+          "name": "wh_electricite",
+          "properties": {
+            "type": "DataWarehouse",
+            "typeProperties": {
+              "artifactId": "2be0ef62-e11e-8c31-4bbe-c4f93e6c16e5",
+              "endpoint": "7kzeddtgtqxubf7clpqkvja2jm-exyjblietkredmtrtnmidzpgvu.datawarehouse.fabric.microsoft.com",
+              "workspaceId": "00000000-0000-0000-0000-000000000000"
+            },
+            "annotations": []
+          }
+        },
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 0,
+          "retryIntervalInSeconds": 30,
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "name": "initialiser_environnement",
+        "dependsOn": [
+          {
+            "activity": "nb_refresh_sql_endpoints",
             "dependencyConditions": [
               "Succeeded"
             ]
