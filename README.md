@@ -31,7 +31,7 @@ API Open-Meteo ──────┘                                            
                                                                      sm_electricite (Direct Lake on OneLake) ◄─┘
                                                                               └─► rpt_electricite
 
-                         STREAMING (toutes les 15 min)
+                         STREAMING (toutes les heures)
 API ODRÉ (tr) ─► nb_producer_eco2mix_tr ─► es_eco2mix_tr ─► eh_electricite (KQL) ─► rtd_electricite
                   (notebook Python)          (Eventstream)                          └─► act_thermique (alerte)
 
@@ -110,7 +110,7 @@ pl_main  (run_id = @pipeline().RunId, annee_debut : 0 = automatique)
 │   └─ nb_check_bronze ─► alerte sur échec
 ├─ pl_orchestration_silver_gold  (run_id, annee_debut transmis)
 │   ├─ nb_silver_eco2mix
-│   ├─ nb_silver_meteo     (en séquence, pas en parallèle : voir « Capacité trial »)
+│   ├─ nb_silver_meteo     (en séquence ; session partagée avec nb_silver_eco2mix, session tag « silver »)
 │   └─ nb_gold
 └─ pl_orchestration_warehouse    (run_id, annee_debut transmis)
     ├─ nb_refresh_sql_endpoints   (synchronisation forcée des SQL endpoints de lh_gold et lh_admin)
@@ -123,7 +123,8 @@ pl_main  (run_id = @pipeline().RunId, annee_debut : 0 = automatique)
 - **Planification** : `pl_main` tous les jours à 05:00 (fuseau de Paris), la nuit pour éviter les conflits de capacité avec le développement interactif.
 - **`annee_debut` automatique** : par défaut, recharge l'année précédente et l'année courante (les seules dont les données peuvent encore changer). Un rechargement complet se lance à la main avec `annee_debut = 2021`.
 - `annee_debut` et `run_id` sont transmis jusqu'aux notebooks et procédures. Le `RunId` de `pl_main` est propagé explicitement, car un pipeline appelé par Invoke Pipeline a son propre `RunId`.
-- Chaque activité Notebook et Procédure stockée a une **politique de retry** (2 tentatives, 120 s).
+- Chaque activité Notebook et Procédure stockée a une **politique de retry** (2 tentatives, 120 s). Un retry absorbe une erreur **passagère** ; un échec à chaque première tentative est un bug qu'il rend invisible (voir l'incident du 19/10). Le taux d'échec au premier essai se surveille dans `ItemJobEventLogs`.
+- **Haute concurrence pour les pipelines** : `nb_silver_eco2mix` et `nb_silver_meteo` partagent une session Spark (même session tag, même lakehouse par défaut `lh_silver`, même utilisateur, même configuration). `nb_gold`, dont le lakehouse par défaut est `lh_gold`, ne peut pas la rejoindre.
 
 ---
 
@@ -271,7 +272,7 @@ Le journal sert aussi de **référence externe** pour le chargement du Warehouse
 
 ### Producteur : `nb_producer_eco2mix_tr`
 
-Notebook **Python** (sans Spark), planifié toutes les 15 minutes dans Fabric.
+Notebook **Python** (sans Spark), planifié **toutes les heures** dans Fabric : la source n'est mise à jour qu'une fois par heure, une fréquence plus élevée n'apporterait rien. Avec une fenêtre de 3 heures, chaque quart d'heure est envoyé environ 3 fois.
 
 - **Sans état, fenêtre glissante** : chaque passage relit les `fenetre_heures` dernières heures (3 par défaut) et envoie tout. Une valeur révisée par RTE est donc toujours récupérée, et une exécution ratée est rattrapée par la suivante.
 - **Livraison au moins une fois** côté producteur, **déduplication idempotente** côté consommateur (materialized view `arg_max`).
@@ -433,6 +434,8 @@ Légèrement inférieures aux bilans nationaux de RTE (écart correspondant à l
 | Reframing | `pl_main` se termine par l'actualisation de `sm_electricite`, visible dans l'historique d'actualisation |
 | Cohérence du rapport | Totaux annuels identiques à ceux du gold |
 | Performances | Analyseur de performances : aucune requête DirectQuery |
+| Échecs au premier essai | `ItemJobEventLogs` : aucun `Failed` pour les notebooks de `pl_main` (les retries ne doivent plus servir) |
+| OneLake security | Utilisateur de test membre de `lecteur_normandie` : seule la région 28 via le SQL endpoint de `lh_gold` ; rien sur `lh_silver` (refus par défaut) |
 
 ---
 
@@ -446,7 +449,62 @@ Légèrement inférieures aux bilans nationaux de RTE (écart correspondant à l
 
 | 13/10/2026 | Premier `pl_main` dans `elec-test` : `agg_mix_journalier` bloque (région 84, 16/02/2025, 21 h au lieu de 24) | 6 demi-heures retirées par RTE ; le silver de dev les conservait (`MERGE` sans suppression), le test chargé à neuf ne les avait plus | Contrôle journalier de `agg_mix_journalier` ; comparaison des bronzes dev / test | Suppression des lignes absentes de la source dans la tranche, avec garde-fou ; contrôle journalier à deux niveaux ; correctif déployé dev → test par `dp_electricite` |
 
+| 19/10/2026 | Aucun symptôme visible : `pl_main` au vert, mais environ 6 min d'attentes de retry par nuit, révélées par le monitoring | `nb_silver_eco2mix`, `nb_gold` et `nb_refresh_sql_endpoints` refusés à **chaque** première tentative (`TooManyRequestsForCapacity`) depuis le retour au starter pool ; les retries de 120 s rattrapaient l'erreur | `ItemJobEventLogs` : 10 exécutions dont 5 échecs pour chacun, contre 0 échec pour `pl_main` | Haute concurrence pour les pipelines (session partagée entre les deux silver) ; si insuffisant, environnement à nœuds Medium plafonnés à 2-3 nœuds |
+
 Sans le contrôle contre le journal, l'incident du 10/10 aurait rechargé silencieusement les données de la veille avec un pipeline au vert. L'incident du 13/10 n'aurait jamais été visible en dev seul : c'est le chargement à neuf d'un second environnement qui a révélé des lignes fantômes accumulées depuis le début du projet.
+
+---
+
+## Monitoring
+
+### Qui voit quoi
+
+| Outil | Ce qu'il voit | Ce qu'il ne voit pas |
+|---|---|---|
+| Workspace monitoring (`ItemJobEventLogs`, `EventhouseQueryLogs`…, en préversion) | Exécutions de pipelines, Dataflows et notebooks planifiés ou lancés par un pipeline ; requêtes de l'Eventhouse | Les messages d'erreur ; ce que les traitements ont fait |
+| Monitoring hub | Toutes les exécutions, avec le détail et l'erreur | Pas de requête ni d'historique long |
+| Capacity Metrics app | La consommation (CU) par élément et par opération ; le détail d'un instant donné | Le métier |
+| `log_execution` | Contrôles, avertissements, lignes écrites, environnement | Durées, capacité |
+
+`JobInstanceId` de `pl_main` = `run_id` de `log_execution` : le monitoring dit quand et combien de temps, le journal dit ce qui s'est passé.
+
+### Durées observées (`ItemJobEventLogs`, état final de chaque exécution par `arg_max`)
+
+| Élément | p50 | p95 |
+|---|---|---|
+| `pl_main` | 37,4 min | 45,9 min |
+| `pl_orchestration_bronze` | 18,9 min | 26,4 min |
+| dont `pl_ingest_meteo` | 15,5 min | 23,2 min |
+| dont `pl_ingest_eco2mix` | 3,5 min | 6,8 min |
+| `pl_orchestration_silver_gold` | 12,1 min | 13,2 min |
+| `pl_orchestration_warehouse` | 4,8 min | 5,2 min |
+| `nb_producer_eco2mix_tr` | 0,4 min | 0,5 min |
+
+La météo est le chemin critique du bronze (exécutée en parallèle d'éCO2mix, quatre fois plus lente) : `date_debut = 2021-01-01` est transmise en dur, et près de 6 ans d'historique horaire sont retéléchargés chaque nuit pour 12 régions, avec une attente de 20 s par région. Avec les retries de l'incident du 19/10, environ la moitié de la durée de `pl_main` est évitable.
+
+### Consommation de capacité (Capacity Metrics app, éléments principaux)
+
+| Bloc | CU (s) | Part |
+|---|---|---|
+| Monitoring (Eventhouse, Eventstream et Activator de monitoring) | 515 198 | 42 % |
+| Temps réel (`es_eco2mix_tr`, `eh_electricite`) | 386 376 | 32 % |
+| Batch dev (`nb_gold`, `pl_ingest_*`, `wh_electricite`, `nb_silver_eco2mix`, `nb_check_bronze`, `df_ref_regions`) | 299 183 | 25 % |
+| Test | 15 648 | 1 % |
+
+Utilisation moyenne de 35 %, aucun rejet sur la période.
+
+### Enseignements
+
+- **Le monitoring coûte plus que ce qu'il surveille** : 42 % de la consommation, atteints en environ 4 jours d'activation. À activer en connaissance de cause et à limiter dans le temps sur une capacité payante.
+- **Un Eventhouse est facturé à son temps d'activité** : l'Eventhouse de monitoring, alimenté en continu, ne se met jamais en veille ; `eh_electricite`, alimenté une fois par heure, n'a été actif qu'environ 34 h sur la période.
+- **Un Eventstream coûte surtout par sa durée de fonctionnement** : pour un petit lot horaire, une ingestion directe dans l'Eventhouse depuis le notebook serait plus économique en production.
+- **Le producteur en notebook Python est quasi gratuit** : il n'apparaît pas parmi les éléments principaux.
+- **Un endpoint Eventhouse activé par erreur sur `wh_electricite`** représentait 97 % des exécutions de jobs (5 717 synchronisations de schéma en 4 jours, environ une par minute). Supprimé : il n'était utilisé par rien.
+- **Une absence d'événement ne produit aucune ligne** : pour détecter les heures sans exécution du producteur, `make-series ... default = 0` plutôt qu'un `summarize` par heure.
+
+### Alerte prévue
+
+Une règle Activator sur `ItemJobEventLogs | where ItemName == "pl_main" and JobStatus =~ "Failed"`, avec le `JobInstanceId` dans le message pour retrouver la cause dans `log_execution`. Non mise en place.
 
 ---
 
@@ -455,6 +513,8 @@ Sans le contrôle contre le journal, l'incident du 10/10 aurait rechargé silenc
 - Une capacité trial n'a **ni file d'attente ni burst** pour Spark : un job sans cœurs disponibles est rejeté (`TooManyRequestsForCapacity`, HTTP 430) au lieu d'attendre.
 - Parades appliquées : notebooks silver en **séquence**, **retry** sur les activités, **délai d'expiration des sessions** réduit à 10 min, `pl_main` planifié la nuit.
 - L'admission optimiste admet un job sur son minimum de nœuds puis le laisse grossir.
+- Un pool à petits nœuds avait fait disparaître les erreurs 430 mais doublait la durée du pipeline ; le retour au starter pool les a fait revenir, masquées par les retries (incident du 19/10).
+- Un **notebook Python** est soumis à la même limite : `nb_refresh_sql_endpoints`, sans Spark, a été refusé avec le même message.
 
 ---
 
@@ -569,7 +629,14 @@ L'audit de portabilité qui a précédé le premier déploiement est dans [`docs
 |---|---|---|---|
 | Rôles du workspace | Accès aux éléments et au contenu du workspace | Tous les utilisateurs du workspace | Administrateur, membre et contributeur ont un accès élevé ; les autres couches s'appliquent surtout aux lecteurs |
 | Permissions d'élément | Partage d'un élément précis (lecture, données, génération) | Utilisateurs hors rôles du workspace | — |
-| OneLake security | Rôles de lecture sur un lakehouse, avec RLS / CLS par table ; refus par défaut | Lecteurs (les rôles par défaut ne s'appliquent qu'aux Lecteurs) | Exercice de configuration à réaliser |
+| OneLake security | Rôles de lecture sur un lakehouse, avec RLS / CLS par table ; refus par défaut | Lecteurs (administrateurs, membres et contributeurs ne sont pas filtrés) | Rôle `lecteur_normandie` sur `lh_gold` (Read sur les trois tables, RLS `code_region = '28'`) ; SQL endpoint de `lh_gold` passé en mode identité de l'utilisateur ; utilisateur de test retiré de `DefaultReader` |
+
+**OneLake security : points clés**
+
+- Le rôle `DefaultReader` contient virtuellement tous les détenteurs de ReadAll : un utilisateur ajouté à un rôle restreint mais resté dans `DefaultReader` garde l'accès complet.
+- En mode **identité déléguée** (par défaut), le SQL endpoint ignore la OneLake security ; il faut le passer en **mode identité de l'utilisateur**. L'ETL n'est pas affecté (identité d'administrateur, non filtrée).
+- RLS et CLS d'une même table doivent être dans le même rôle ; le nom de table d'une règle doit correspondre exactement, sinon elle ne renvoie aucune ligne, sans erreur.
+- Un modèle Direct Lake on OneLake n'applique la OneLake security que s'il utilise l'**identité de l'utilisateur** ; `sm_electricite`, en identité fixe et lisant le Warehouse, n'en tient pas compte, d'où la RLS du modèle. Une architecture « tout par l'identité de l'utilisateur » (OneLake security + Direct Lake on OneLake en SSO) centraliserait les droits en un seul endroit.
 | Sécurité SQL du Warehouse | RLS (`politique_region`), CLS (`GRANT` par colonne), masquage dynamique | Requêtes SQL sur le Warehouse | La RLS s'applique **aussi à l'administrateur** du workspace (vérifié) ; filtre aussi les `DELETE` de l'ETL |
 | RLS du modèle sémantique | Rôle DAX `lecteur_regional` | **Uniquement les lecteurs** du modèle | Testée avec « Tester en tant que rôle » ; ignore la sécurité SQL en Direct Lake on OneLake |
 
@@ -592,7 +659,13 @@ L'audit de portabilité qui a précédé le premier déploiement est dans [`docs
 | 3 | Real-Time Intelligence : producteur, Eventstream, Eventhouse / KQL, Real-Time Dashboard, Activator | ✅ |
 | 4 | Warehouse : modèle en étoile, procédures transactionnelles, contrôles, synchronisation forcée des SQL endpoints, CLS / DDM / RLS | ✅ |
 | 5 | Power BI : modèle sémantique Direct Lake on OneLake, mesures, RLS du modèle, reframing explicite, rapport | ✅ |
-| 6 | Deployment pipeline dev → test, variable library, audit de portabilité, initialisation d'environnement ; reste : monitoring, OneLake security | 🔄 |
+| 6 | Deployment pipeline dev → test, variable library, audit de portabilité, initialisation d'environnement, monitoring, OneLake security | ✅ |
+
+### À confirmer
+
+- Haute concurrence : plus aucun échec au premier essai dans `ItemJobEventLogs` après l'exécution du 20/10.
+- OneLake security : test avec l'utilisateur de test (région 28 uniquement).
+- Monitoring : baisse de la consommation de l'Eventhouse de monitoring après la suppression de l'endpoint Eventhouse.
 
 ### Bonus non réalisés
 
@@ -602,6 +675,9 @@ L'audit de portabilité qui a précédé le premier déploiement est dans [`docs
 - `notebookutils.notebook.runMultiple` ; mode haute concurrence pour les pipelines.
 - Warehouse : comparaison de performance SQL endpoint / Warehouse, clonage de table, time travel ; jours fériés dans `dim.date`.
 - Secret du producteur dans Azure Key Vault.
+- Ingestion météo incrémentale : un fichier par région et par année (`meteo/region=XX/annee=YYYY/`), boucle sur les années à partir de `annee_debut` via Invoke Pipeline, attente réduite — environ 12 minutes de moins sur `pl_main`.
+- Alerte Activator sur l'échec de `pl_main` à partir de `ItemJobEventLogs`.
+- Ingestion directe dans l'Eventhouse depuis le producteur, sans Eventstream, et comparaison de la consommation.
 
 ---
 

@@ -43,7 +43,13 @@
         "name": "Lookup ref_regions",
         "dependsOn": [
           {
-            "activity": "Set v_date_fin",
+            "activity": "Set variables date_fin",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          },
+          {
+            "activity": "Set variables date_debut",
             "dependencyConditions": [
               "Succeeded"
             ]
@@ -77,7 +83,7 @@
                       "location": {
                         "type": "HttpServerLocation",
                         "relativeUrl": {
-                          "value": "v1/archive?latitude=@{item().latitude}&longitude=@{item().longitude}&start_date=@{pipeline().parameters.date_debut}&end_date=@{variables('v_date_fin')}&hourly=temperature_2m,wind_speed_10m,shortwave_radiation&timezone=UTC",
+                          "value": "v1/archive?latitude=@{item().latitude}&longitude=@{item().longitude}&start_date=@{variables('v_date_debut')}&end_date=@{variables('v_date_fin')}&hourly=temperature_2m,wind_speed_10m,shortwave_radiation&timezone=UTC",
                           "type": "Expression"
                         }
                       }
@@ -91,7 +97,7 @@
                 "sink": {
                   "type": "BinarySink",
                   "storeSettings": {
-                    "type": "LakehouseWriteSettings"
+                    "type": "AzureBlobStorageWriteSettings"
                   },
                   "datasetSettings": {
                     "type": "Binary",
@@ -99,7 +105,7 @@
                       "location": {
                         "type": "LakehouseLocation",
                         "folderPath": {
-                          "value": "meteo/region=@{item().code_insee_region}",
+                          "value": "meteo/archive/region=@{item().code_insee_region}/annee=@{pipeline().parameters.annee}",
                           "type": "Expression"
                         },
                         "fileName": "meteo.json"
@@ -138,7 +144,7 @@
             {
               "type": "Wait",
               "typeProperties": {
-                "waitTimeInSeconds": 20
+                "waitTimeInSeconds": 5
               },
               "name": "Wait_quota",
               "dependsOn": [
@@ -167,7 +173,7 @@
         "typeProperties": {
           "variableName": "v_date_fin",
           "value": {
-            "value": "@if(empty(pipeline().parameters.date_fin),\n    formatDateTime(addDays(utcNow(), -6), 'yyyy-MM-dd'),\n    pipeline().parameters.date_fin)",
+            "value": "@if(equals(pipeline().parameters.annee,\n    int(formatDateTime(addDays(utcNow(), -6), 'yyyy'))),\n    formatDateTime(addDays(utcNow(), -6), 'yyyy-MM-dd'),\n    concat(string(pipeline().parameters.annee), '-12-31'))",
             "type": "Expression"
           }
         },
@@ -175,7 +181,7 @@
           "secureInput": false,
           "secureOutput": false
         },
-        "name": "Set v_date_fin",
+        "name": "Set variables date_fin",
         "dependsOn": []
       },
       {
@@ -199,15 +205,25 @@
             ]
           }
         ]
+      },
+      {
+        "type": "SetVariable",
+        "typeProperties": {
+          "variableName": "v_date_debut",
+          "value": "@concat(string(pipeline().parameters.annee), '-01-01')"
+        },
+        "policy": {
+          "secureInput": false,
+          "secureOutput": false
+        },
+        "name": "Set variables date_debut",
+        "dependsOn": []
       }
     ],
     "parameters": {
-      "date_debut": {
+      "annee": {
         "type": "string",
         "defaultValue": "2021-01-01"
-      },
-      "date_fin": {
-        "type": "string"
       },
       "parent_run_id": {
         "type": "string"
@@ -215,6 +231,9 @@
     },
     "variables": {
       "v_date_fin": {
+        "type": "String"
+      },
+      "v_date_debut": {
         "type": "String"
       }
     }
