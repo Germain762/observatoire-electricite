@@ -62,7 +62,9 @@ spark.conf.set("spark.sql.session.timeZone", "UTC")
 from pyspark.sql import functions as F, Window
 from delta.tables import DeltaTable
 
-raw = spark.read.option("multiline", True).json(f"{BRONZE}/meteo/")
+raw = (spark.read.option("multiline", True)
+            .json(f"{BRONZE}/meteo/archive/")
+            .filter(F.col("annee") >= annee_debut))
 
 meteo = (raw
     .select(F.col("region").cast("string").alias("code_insee_region"), "hourly.*")
@@ -84,7 +86,8 @@ if not spark.catalog.tableExists("meteo_horaire"):
 else:
     (DeltaTable.forName(spark, "meteo_horaire").alias("t")
        .merge(meteo.alias("m"),
-              "t.code_insee_region = m.code_insee_region AND t.ts_utc = m.ts_utc")
+              f"t.code_insee_region = m.code_insee_region AND t.ts_utc = m.ts_utc "
+              f"AND t.ts_utc >= '{annee_debut}-01-01'")
        .whenMatchedUpdateAll(condition="t.row_hash <> m.row_hash")
        .whenNotMatchedInsertAll()
        .execute())
