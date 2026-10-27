@@ -7,3 +7,14 @@ expression 'DirectLake – wh_electricite' =
 
 	annotation PBI_IncludeFutureArtifacts = False
 
+expression 'DirectLake – lh_gold' =
+		let
+		    Source = AzureStorage.DataLake("https://onelake.dfs.fabric.microsoft.com/ad90f025-9a04-41a2-b271-9b5881e5e6ad/f79e1413-8920-4c89-ac6e-630513ec0f5e", [HierarchicalNavigation=true])
+		in
+		    Source
+	lineageTag: ffe92d64-9d2c-4f08-ac51-a2c68a6c7d0c
+
+	annotation PBI_IncludeFutureArtifacts = False
+
+	annotation PBI_RemovedChildren = [{"remoteItemId":{"analysisServicesObject":{"sourceName":null,"sourceLineageTag":"[dbo].[fact_conso_meteo_horaire]"}},"objectType":"Table"},{"remoteItemId":{"analysisServicesObject":{"sourceName":null,"sourceLineageTag":"[dbo].[agg_mix_journalier]"}},"objectType":"Table"},{"remoteItemId":{"analysisServicesObject":{"sourceName":null,"sourceLineageTag":"[dbo].[fact_production_horaire]"}},"objectType":"Table"}]
+

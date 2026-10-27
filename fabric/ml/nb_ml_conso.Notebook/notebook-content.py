@@ -39,6 +39,17 @@ import holidays
 
 # CELL ********************
 
+%run nb_ml_utils
+
+# METADATA ********************
+
+# META {
+# META   "language": "python",
+# META   "language_group": "synapse_pyspark"
+# META }
+
+# CELL ********************
+
 df = (spark.read.table("fact_conso_meteo_horaire")
         .filter("nb_pas = 2")                       # on écarte les heures incomplètes
         .select("code_region", "heure_utc", "heure_paris", "conso_mwh",

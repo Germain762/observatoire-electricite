@@ -1,0 +1,90 @@
+table fact_prevision_conso
+	lineageTag: d031f150-c094-4202-8e78-a8b0ae016182
+	sourceLineageTag: [dbo].[fact_prevision_conso]
+
+	column code_region
+		dataType: string
+		lineageTag: c21d80e1-d80c-4b91-83d2-3ca5e11a3e0d
+		sourceLineageTag: code_region
+		summarizeBy: none
+		sourceColumn: code_region
+
+		annotation SummarizationSetBy = Automatic
+
+	column date_key
+		dataType: int64
+		formatString: 0
+		lineageTag: 0ddeca42-0b87-43b7-949f-deff2d6314cd
+		sourceLineageTag: date_key
+		summarizeBy: none
+		sourceColumn: date_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column heure_utc
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: d1fb5cdc-020e-4591-84bc-4eb649d51538
+		sourceLineageTag: heure_utc
+		summarizeBy: none
+		sourceColumn: heure_utc
+
+		annotation SummarizationSetBy = Automatic
+
+	column heure_paris
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 854ac788-a50f-4f99-acc8-a71598f103ec
+		sourceLineageTag: heure_paris
+		summarizeBy: none
+		sourceColumn: heure_paris
+
+		annotation SummarizationSetBy = Automatic
+
+	column conso_mwh
+		dataType: double
+		lineageTag: 446b6bec-0e95-4477-99ed-18986f609f08
+		sourceLineageTag: conso_mwh
+		summarizeBy: sum
+		sourceColumn: conso_mwh
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column prevision_mwh
+		dataType: double
+		lineageTag: 1d56f946-d1db-4dc1-ad53-7fa87054d86b
+		sourceLineageTag: prevision_mwh
+		summarizeBy: sum
+		sourceColumn: prevision_mwh
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column source_meteo
+		dataType: string
+		lineageTag: ff151ecf-7b34-44dd-bbfd-0c9e63313e00
+		sourceLineageTag: source_meteo
+		summarizeBy: none
+		sourceColumn: source_meteo
+
+		annotation SummarizationSetBy = Automatic
+
+	column modele
+		dataType: string
+		lineageTag: 58dd1969-432f-4e8b-be6b-fd4eeef95b0e
+		sourceLineageTag: modele
+		summarizeBy: none
+		sourceColumn: modele
+
+		annotation SummarizationSetBy = Automatic
+
+	partition fact_prevision_conso = entity
+		mode: directLake
+		source
+			entityName: fact_prevision_conso
+			schemaName: dbo
+			expressionSource: 'DirectLake – lh_gold'
+
