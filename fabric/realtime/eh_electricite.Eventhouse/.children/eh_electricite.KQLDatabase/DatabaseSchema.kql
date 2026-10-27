@@ -46,4 +46,4 @@
 .create-or-alter materialized-view  mv_eco2mix_tr_dedup on table eco2mix_tr { eco2mix_tr
     | summarize arg_max(fetched_at_utc, *) by code_region, ts_utc }
 .alter table eco2mix_tr_raw policy retention @'{"SoftDeletePeriod":"365.00:00:00","Recoverability":"Enabled"}'
-.alter table eco2mix_tr policy update "[{\"IsEnabled\":true,\"Source\":\"eco2mix_tr_raw\",\"Query\":\"f_eco2mix_tr_typage()\",\"IsTransactional\":false,\"PropagateIngestionProperties\":false,\"ManagedIdentity\":null}]"
+.alter table eco2mix_tr policy update "[{\"IsEnabled\":true,\"Source\":\"eco2mix_tr_raw\",\"Query\":\"f_eco2mix_tr_typage()\",\"IsTransactional\":false,\"PropagateIngestionProperties\":false,\"ManagedIdentity\":null,\"IsAsync\":false}]"
