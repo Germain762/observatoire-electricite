@@ -17,6 +17,7 @@ consommation / température, en historique (batch) comme en quasi temps réel (s
 | RTE via ODRÉ (Opendatasoft) | `eco2mix-regional-cons-def` (consolidé et définitif) | Demi-heure, par région, depuis janvier 2021 | Quota de 50 000 appels API / mois → ingestion via l'endpoint **export** (un appel par année), jamais par pagination des records |
 | RTE via ODRÉ | `eco2mix-regional-tr` (temps réel) | Quart d'heure, par région | Mis à jour une fois par heure ; valeurs récentes révisables ; données du mois M purgées à la mi-mois M+1 |
 | Open-Meteo | API archive (`archive-api.open-meteo.com/v1/archive`) | Horaire | Température, vent, rayonnement ; quelques jours de retard → date de fin = J-6 |
+| Open-Meteo | API Previous Runs (`previous-runs-api.open-meteo.com/v1/forecast`) | Horaire | Prévisions **émises la veille** (`*_previous_day1`), archivées depuis 2024 ; utilisées pour le volet ML |
 | geo.api.gouv.fr | `/regions` | — | Base du référentiel régions |
 
 ---
@@ -30,6 +31,10 @@ API ODRÉ (cons-def) ─┐
 API Open-Meteo ──────┘                                                                        │
                                                                      sm_electricite (Direct Lake on OneLake) ◄─┘
                                                                               └─► rpt_electricite
+                         MACHINE LEARNING
+lh_gold + météo prévue J-1 ─► nb_ml_entrainement ─► exp_conso (MLflow) ─► ml_conso (modèle enregistré)
+                                                                              │
+                              nb_ml_scoring (PREDICT) ─► lh_gold.fact_prevision_conso ─► sm_electricite
 
                          STREAMING (toutes les heures)
 API ODRÉ (tr) ─► nb_producer_eco2mix_tr ─► es_eco2mix_tr ─► eh_electricite (KQL) ─► rtd_electricite
@@ -61,7 +66,7 @@ Le streaming suit la même logique en trois couches dans l'Eventhouse : table br
 | Dossier Git | `/fabric` pour les items Fabric, la racine reste libre pour la doc et le code hors Fabric |
 | Lakehouses | `lh_bronze`, `lh_silver`, `lh_gold`, `lh_admin` |
 | Format des modèles sémantiques | Grands modèles sémantiques, identique sur les deux workspaces |
-| Dossiers du workspace | Un dossier par couche (`bronze`, `silver`, `gold`, `realtime`, `warehouse`, `powerbi`) |
+| Dossiers du workspace | Un dossier par couche (`bronze`, `silver`, `gold`, `realtime`, `warehouse`, `powerbi`, `ml`) |
 | Calcul Spark | Starter pool ; délai d'expiration des sessions réduit à 10 min |
 
 ### Structure du repo
@@ -88,6 +93,8 @@ observatoire-electricite/
 | `kqs_` | KQL Queryset |
 | `rtd_` | Real-Time Dashboard |
 | `act_` | Activator |
+| `exp_` | Expérience MLflow |
+| `ml_` | Modèle ML enregistré |
 | `sm_` | Modèle sémantique |
 | `rpt_` | Rapport Power BI |
 | `vl_` | Variable library |
@@ -105,8 +112,8 @@ pl_main  (run_id = @pipeline().RunId, annee_debut : 0 = automatique)
 ├─ Set variable annee_debut_effective   (0 → année courante - 1)
 ├─ pl_orchestration_bronze       (run_id, annee_debut transmis)
 │   ├─ df_ref_regions
-│   ├─ pl_ingest_eco2mix ┐ en parallèle
-│   ├─ pl_ingest_meteo   ┘
+│   ├─ pl_ingest_eco2mix          ┐ en parallèle
+│   ├─ ForEach annees → pl_ingest_meteo (une exécution par année) ┘
 │   └─ nb_check_bronze ─► alerte sur échec
 ├─ pl_orchestration_silver_gold  (run_id, annee_debut transmis)
 │   ├─ nb_silver_eco2mix
@@ -136,13 +143,15 @@ pl_main  (run_id = @pipeline().RunId, annee_debut : 0 = automatique)
 |---|---|
 | `df_ref_regions` | Référentiel `ref_regions` : code INSEE, libellé, coordonnées du chef-lieu, indicateur `perimetre_eco2mix` |
 | `pl_ingest_eco2mix` | Export Parquet éCO2mix, une itération par année (paramètres `annee_debut`, `annee_fin`) |
-| `pl_ingest_meteo` | Lookup régions → Filter sur `perimetre_eco2mix` → ForEach → Copy Open-Meteo |
-| `pl_orchestration_bronze` | Dataflow → les deux ingestions en parallèle → notebook de contrôle → alerte sur échec |
+| `pl_ingest_meteo` | Paramètre `annee` : Lookup régions → Filter sur `perimetre_eco2mix` → ForEach régions (séquentiel) → Copy Open-Meteo de l'année vers `meteo/archive/region=XX/annee=YYYY/` → attente de 5 s |
+| `pl_orchestration_bronze` | Dataflow → éCO2mix et boucle séquentielle sur les années météo en parallèle → notebook de contrôle → alerte sur échec |
 | `nb_check_bronze` | Vérifie qu'aucune combinaison région / année ne manque ; lève une exception sinon |
 
 ### Choix
 
 - **Idempotence par écrasement** : un fichier par année (`annee=YYYY/`), réécrit à chaque exécution. Relancer ne crée jamais de doublon.
+- **Météo incrémentale, sur le modèle d'éCO2mix** : un fichier par région **et par année**, et seules les années ≥ `annee_debut` sont retéléchargées (2 ans par nuit au lieu de près de 6). La boucle sur les années vit dans `pl_orchestration_bronze` et celle sur les régions dans `pl_ingest_meteo` (pas de ForEach imbriqué). L'année de fin est celle de J-6 : entre le 1er et le 6 janvier, la nouvelle année n'a pas encore de données dans l'archive. Requêtes d'un an au lieu de six : l'attente entre deux appels passe de 20 s à 5 s.
+- **Nouvelle racine `meteo/archive/`** : faire cohabiter l'ancienne structure (`region=XX/meteo.json`) et la nouvelle (`region=XX/annee=YYYY/`) sous la même racine aurait fait échouer la découverte de partitions de Spark. Les anciens dossiers ont été supprimés après migration.
 - **Copie en Binary** : le Parquet de l'API est recopié tel quel, sans parsing dans le pipeline.
 - **Pas de ForEach imbriqué** (non supporté dans les pipelines Fabric) : découpage en pipelines enfants appelés par Invoke Pipeline.
 - **Corse hors périmètre** : la Corse n'est pas raccordée au réseau continental et n'apparaît pas dans éCO2mix régional. Elle reste dans le référentiel avec `perimetre_eco2mix = false` ; chaque traitement filtre selon ses besoins, rien n'est exclu en dur.
@@ -169,8 +178,10 @@ pl_main  (run_id = @pipeline().RunId, annee_debut : 0 = automatique)
 ### `nb_silver_meteo` → `meteo_horaire`
 
 - Lecture du JSON multiligne, aplatissement des tableaux parallèles par `arrays_zip` + `explode`.
-- Code région récupéré depuis le dossier `region=XX` (découverte de partitions).
-- Même stratégie de `MERGE` sur (région, `ts_utc`).
+- Code région et année récupérés depuis les dossiers `region=XX` et `annee=YYYY` (découverte de partitions).
+- **Élagage de partitions** : filtre `annee >= annee_debut` à la lecture, seuls les fichiers récents sont lus.
+- Même stratégie de `MERGE` sur (région, `ts_utc`), avec une borne `t.ts_utc >= annee_debut-01-01` pour que Delta ignore les fichiers anciens de la cible. Pas de suppression des lignes absentes de la source : l'archive Open-Meteo ne retire pas d'heures.
+- **Migration validée** : rechargement complet (`annee_debut = 2021`) dans la nouvelle structure, nombre de lignes de `meteo_horaire` inchangé et aucune insertion dans le `MERGE`.
 
 ---
 
@@ -435,6 +446,9 @@ Légèrement inférieures aux bilans nationaux de RTE (écart correspondant à l
 | Cohérence du rapport | Totaux annuels identiques à ceux du gold |
 | Performances | Analyseur de performances : aucune requête DirectQuery |
 | Échecs au premier essai | `ItemJobEventLogs` : aucun `Failed` pour les notebooks de `pl_main` (les retries ne doivent plus servir) |
+| Migration météo | Rechargement complet dans `meteo/archive/` : nombre de lignes de `meteo_horaire` inchangé, 0 insertion dans le `MERGE` |
+| Encodage de la région (ML) | Modèle réentraîné sur 2021-2024 avec `region_id` : même score sur 2025 (~140 MWh) qu'avec la catégorie pandas |
+| Chaîne de scoring (ML) | `fact_prevision_conso` écrite par PREDICT, cohérente avec les prédictions du notebook |
 | OneLake security | Utilisateur de test membre de `lecteur_normandie` : seule la région 28 via le SQL endpoint de `lh_gold` ; rien sur `lh_silver` (refus par défaut) |
 
 ---
@@ -480,7 +494,7 @@ Sans le contrôle contre le journal, l'incident du 10/10 aurait rechargé silenc
 | `pl_orchestration_warehouse` | 4,8 min | 5,2 min |
 | `nb_producer_eco2mix_tr` | 0,4 min | 0,5 min |
 
-La météo est le chemin critique du bronze (exécutée en parallèle d'éCO2mix, quatre fois plus lente) : `date_debut = 2021-01-01` est transmise en dur, et près de 6 ans d'historique horaire sont retéléchargés chaque nuit pour 12 régions, avec une attente de 20 s par région. Avec les retries de l'incident du 19/10, environ la moitié de la durée de `pl_main` est évitable.
+Ces durées sont antérieures aux corrections du 19-20/10. La météo était le chemin critique du bronze (exécutée en parallèle d'éCO2mix, quatre fois plus lente) : `date_debut = 2021-01-01` était transmise en dur, et près de 6 ans d'historique horaire étaient retéléchargés chaque nuit pour 12 régions, avec une attente de 20 s par région. Corrigé par l'ingestion météo incrémentale (voir la couche Bronze) ; les retries de l'incident du 19/10 ont été traités par la haute concurrence.
 
 ### Consommation de capacité (Capacity Metrics app, éléments principaux)
 
@@ -642,6 +656,80 @@ L'audit de portabilité qui a précédé le premier déploiement est dans [`docs
 
 ---
 
+## Machine learning : prévision de la consommation
+
+Volet de découverte du ML dans Fabric : prévoir la consommation horaire de chaque région à partir du calendrier, de la météo et de la consommation de la semaine précédente.
+
+### Démarche
+
+| Étape | Choix | Pourquoi |
+|---|---|---|
+| Problème | Régression supervisée, cible `conso_mwh` horaire par région | La valeur à prédire est un nombre, les exemples passés donnent la bonne réponse |
+| Référence | « Même heure, une semaine avant » (`conso_j7`) | Un modèle qui ne bat pas une règle simple ne sert à rien |
+| Découpage | Entraînement 2021-2023, validation 2024, test 2025 regardé une seule fois | Un découpage aléatoire laisserait voir le futur ; décider sur le test le rend optimiste |
+| Mesures | MAE (MWh) et MAPE (%) | La MAE est dominée par les grandes régions, la MAPE donne le même poids à chacune |
+| Suivi | Expérience MLflow `exp_conso` | Chaque essai garde ses paramètres, ses scores et son modèle |
+
+### Variables explicatives
+
+| Variable | Rôle |
+|---|---|
+| `heure`, `jour_semaine`, `mois` (heure de Paris) | Rythmes de la vie : la journée, la semaine, les saisons |
+| `ferie`, `pont`, `ferie_j7` | Jours fériés (bibliothèque `holidays`), ponts, et semaine précédente fériée (sinon `conso_j7` trompe le modèle) |
+| `conso_j7` | Mémoire : niveau de la région et tendance récente |
+| `temperature_c`, `chauffage = max(0, 15 − T)`, `climatisation = max(0, T − 22)`, vent, rayonnement | Météo ; le rayonnement avec le même décalage d'une heure que dans le gold |
+| `temp_moy_24h`, `temp_moy_72h` | Inertie thermique : un bâtiment refroidi plusieurs jours continue de chauffer |
+| `delta_temp_j7` | Écart de température avec la semaine précédente : quand `conso_j7` n'est plus représentatif |
+
+`conso_j7` et `temp_j7` sont obtenus par **jointure sur l'horodatage décalé** et les moyennes par `rolling("24h")` sur une **durée** : un `shift` ou une fenêtre en nombre de lignes se décaleraient sur les heures manquantes, sans rien signaler.
+
+### Résultats (test 2025)
+
+| Modèle | MAE (MWh) | MAPE |
+|---|---|---|
+| Référence naïve J-7 | 336 | 7,8 % |
+| Régression linéaire | 280 | 7,1 % |
+| Régression linéaire, heures / jours / mois en colonnes 0/1 | 262 | 6,8 % |
+| LightGBM | 172 | 4,2 % |
+| LightGBM + jours fériés | 166 | 4,0 % |
+| LightGBM + jours fériés + inertie, météo **observée** | **140** | **3,45 %** |
+| Même modèle, météo **prévue la veille** (Previous Runs) | **155** | **3,72 %** |
+
+- **La performance réaliste est la dernière ligne** : la veille au soir, on ne dispose que de la météo prévue. Plus de deux fois moins d'erreur que la référence. Toutes les heures utilisent la prévision, y compris celles des moyennes glissantes qui seraient déjà observées : le chiffre est plutôt pessimiste.
+- **La prévision météo n'explique qu'environ 10 % de l'erreur** (+15 MWh pour une erreur moyenne de prévision de température de 1,1 °C) : le reste vient du modèle.
+- Les scores antérieurs aux variables d'inertie ont été mesurés sur 2025 en décidant au vu du test : ils sont légèrement optimistes. Le score de 140 / 155 est le seul obtenu avec le découpage en trois périodes.
+
+### Enseignements
+
+- **Pourquoi les arbres battent la régression linéaire** : la régression additionne des effets indépendants. Elle ne sait représenter ni les **interactions** (froid × 19h × jour ouvré), ni une **échelle** propre à chaque région : un seul coefficient en MWh par degré, dominé par les grandes régions, fait exploser l'erreur relative des petites (Bourgogne-Franche-Comté et Centre-Val de Loire à 11 %, contre 5 % pour PACA). Les arbres de LightGBM découpent par seuils et apprennent ces combinaisons seuls.
+- **Des variables redondantes rapportent peu** : passer les heures en colonnes 0/1 n'améliore la régression que de 6 %, car `conso_j7` contient déjà le profil de la journée.
+- **L'inertie thermique est l'amélioration la plus rentable** (172 → 140 MWh). Elle a corrigé la vague de froid du 17-23 novembre 2025, où le modèle restait ancré sur une semaine précédente douce (+50 % de consommation d'une semaine à l'autre).
+- **Un modèle n'apprend bien que ce qu'il a vu souvent** : les ponts de mai 2025, le 24 décembre ou le début août restent les pires jours. Ce sont des limites connues, non corrigées pour ne pas réutiliser le test.
+- **Les arbres n'extrapolent pas** : au-delà des valeurs vues à l'entraînement, LightGBM répond avec sa feuille la plus proche. Hypothèse écartée pour la vague de froid (températures rares mais déjà vues), à garder en tête.
+
+### Mise en production
+
+| Élément | Rôle |
+|---|---|
+| `lh_silver.dbo.meteo_prevue_j1` | Prévisions de la veille d'Open-Meteo, collectées une fois (requêtes mensuelles, avec retries) |
+| `nb_ml_utils` | Calcul des variables, partagé par l'entraînement et le scoring (`%run`) |
+| `nb_ml_entrainement` | Vérification de l'encodage, puis entraînement du modèle de production sur 2021-2025 et enregistrement |
+| `exp_conso` | Expérience MLflow : tous les essais et leurs scores |
+| `ml_conso` | Modèle enregistré (version 1), au format MLflow avec sa signature |
+| `nb_ml_scoring` | Scoring par lots avec PREDICT (`MLFlowTransformer`) |
+| `lh_gold.dbo.fact_prevision_conso` | Prévision et réel par région et par heure, avec `source_meteo` et `modele` pour la traçabilité |
+
+- **Un seul code de calcul des variables** pour l'entraînement et le scoring : sinon, une partie de l'écart observé viendrait d'un calcul différent et non du modèle (*training-serving skew*).
+- **Entrées simples et stables** : PREDICT reçoit un DataFrame Spark, où le type « category » de pandas n'existe pas. La région devient un numéro `region_id` défini par une liste figée dans le code (et non déduite des données), déclarée en `categorical_feature` à LightGBM ; toutes les variables sont converties en décimaux pour une signature sans ambiguïté. Un contrôle vérifie que ce changement d'encodage ne dégrade pas le score.
+- **Modèle de production entraîné sur toutes les données** une fois l'évaluation faite : les scores calculés ensuite sur 2025 ne sont plus que des contrôles de la chaîne, pas des mesures de performance.
+- **Rapport** : `fact_prevision_conso` ajoutée à `sm_electricite` (Direct Lake on OneLake combine des tables du Warehouse et de `lh_gold`), reliée à Date et à Région — la RLS du modèle filtre donc aussi les prévisions. Page « réel contre prévision » avec les mesures `Prévision MWh`, `Erreur absolue MWh` et `MAPE prévision`.
+
+### Pour une vraie prévision quotidienne de J+1
+
+Les données consolidées de RTE arrivent avec environ un mois de retard : `conso_j7` devrait venir du **flux temps réel** (`eh_electricite`), et la météo du lendemain de l'API de prévision d'Open-Meteo. Le scoring deviendrait une étape nocturne de `pl_main`, où se rejoindraient les parties batch et temps réel du projet.
+
+---
+
 ## Maintenance des tables (prévu)
 
 - Pas d'`OPTIMIZE` dans les notebooks de chargement ; prévu : un `nb_maintenance` planifié (`OPTIMIZE` puis `VACUUM`) et l'*optimize write* sur les tables gold.
@@ -660,6 +748,7 @@ L'audit de portabilité qui a précédé le premier déploiement est dans [`docs
 | 4 | Warehouse : modèle en étoile, procédures transactionnelles, contrôles, synchronisation forcée des SQL endpoints, CLS / DDM / RLS | ✅ |
 | 5 | Power BI : modèle sémantique Direct Lake on OneLake, mesures, RLS du modèle, reframing explicite, rapport | ✅ |
 | 6 | Deployment pipeline dev → test, variable library, audit de portabilité, initialisation d'environnement, monitoring, OneLake security | ✅ |
+| 7 | Machine learning : prévision de la consommation (LightGBM, MLflow, modèle enregistré, PREDICT, page de rapport) ; ingestion météo incrémentale | ✅ |
 
 ### À confirmer
 
@@ -675,9 +764,9 @@ L'audit de portabilité qui a précédé le premier déploiement est dans [`docs
 - `notebookutils.notebook.runMultiple` ; mode haute concurrence pour les pipelines.
 - Warehouse : comparaison de performance SQL endpoint / Warehouse, clonage de table, time travel ; jours fériés dans `dim.date`.
 - Secret du producteur dans Azure Key Vault.
-- Ingestion météo incrémentale : un fichier par région et par année (`meteo/region=XX/annee=YYYY/`), boucle sur les années à partir de `annee_debut` via Invoke Pipeline, attente réduite — environ 12 minutes de moins sur `pl_main`.
 - Alerte Activator sur l'échec de `pl_main` à partir de `ItemJobEventLogs`.
 - Ingestion directe dans l'Eventhouse depuis le producteur, sans Eventstream, et comparaison de la consommation.
+- ML : prévision quotidienne de J+1 (consommation temps réel + API de prévision Open-Meteo, scoring dans `pl_main`) ; vacances scolaires comme variable ; réglage des paramètres de LightGBM sur le jeu de validation.
 
 ---
 
