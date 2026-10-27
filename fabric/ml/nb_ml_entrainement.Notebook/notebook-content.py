@@ -71,3 +71,25 @@ print(scores(test["conso_mwh"], gbm_verif.predict(preparer_X(test))))
 # META   "language": "python",
 # META   "language_group": "synapse_pyspark"
 # META }
+
+# CELL ********************
+
+from mlflow.models.signature import infer_signature
+
+mlflow.autolog(disable=True)           # on enregistre le modèle nous-mêmes, une seule fois
+mlflow.set_experiment("exp_conso")
+
+X, y = preparer_X(df), df["conso_mwh"]
+with mlflow.start_run(run_name="lightgbm_production"):
+    gbm = lgb.LGBMRegressor(n_estimators=500, learning_rate=0.05, num_leaves=63)
+    gbm.fit(X, y, categorical_feature=["region_id"])
+    mlflow.lightgbm.log_model(gbm, "model",
+                              signature=infer_signature(X, gbm.predict(X)),
+                              registered_model_name="ml_conso")
+
+# METADATA ********************
+
+# META {
+# META   "language": "python",
+# META   "language_group": "synapse_pyspark"
+# META }

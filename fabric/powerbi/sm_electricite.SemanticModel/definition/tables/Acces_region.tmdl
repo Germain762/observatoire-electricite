@@ -3,6 +3,27 @@ table Acces_region
 	lineageTag: 7c4d5ed2-3a3f-4f37-af60-8aa5667945f2
 	sourceLineageTag: [securite].[acces_region]
 
+	measure 'Prévision MWh' = SUM ( fact_prevision_conso[prevision_mwh] )
+		lineageTag: 99660b6d-c17e-41ea-8aac-3e93f0c72ea5
+
+		changedProperty = Name
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Erreur absolue MWh' = SUMX ( fact_prevision_conso, ABS ( [prevision_mwh] - [conso_mwh] ) )
+		lineageTag: d0e90d84-c32a-44bc-9a89-e012492fb4e6
+
+		changedProperty = Name
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'MAPE prévision' = AVERAGEX ( fact_prevision_conso, DIVIDE ( ABS ( [prevision_mwh] - [conso_mwh] ), [conso_mwh] ) )
+		lineageTag: 2d4532f4-32fa-4ad0-8abe-769f87ab30ec
+
+		changedProperty = Name
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
 	column utilisateur
 		dataType: string
 		isHidden

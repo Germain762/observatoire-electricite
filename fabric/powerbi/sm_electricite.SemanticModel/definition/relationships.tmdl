@@ -18,3 +18,11 @@ relationship 3baeb8d7-3b6c-d8c4-2615-6c92e8c85753
 	fromColumn: Consommation.code_region
 	toColumn: Région.code_insee_region
 
+relationship 32b795e8-d656-e0c2-c8e9-dcd4858dd4ea
+	fromColumn: fact_prevision_conso.code_region
+	toColumn: Région.code_insee_region
+
+relationship 686ffde5-0410-b36b-546a-aa8a88234a30
+	fromColumn: fact_prevision_conso.date_key
+	toColumn: Date.date_key
+
